@@ -206,3 +206,232 @@ export default function UniversityDetails() {
     );
   }
 
+  return (
+    <div className="min-h-screen bg-muted/30">
+      {/* Header with banner */}
+      <div className="relative">
+        {university.banner_url ? (
+          <div className="h-64 bg-cover bg-center" style={{ backgroundImage: `url(${university.banner_url})` }}>
+            <div className="absolute inset-0 bg-black/50" />
+          </div>
+        ) : (
+          <div className="h-64 bg-gradient-to-r from-primary to-secondary">
+            <div className="absolute inset-0 bg-black/30" />
+          </div>
+        )}
+        
+        <div className="absolute top-6 left-6">
+          <Link to="/browse-universities">
+            <Button variant="secondary" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="container py-8 px-4">
+        {/* University Info Card */}
+        <Card className="shadow-medium border-border/50 -mt-20 relative z-10 mb-8">
+          <CardContent className="p-8">
+            <div className="flex flex-col md:flex-row items-start gap-6">
+              <div className="flex-shrink-0">
+                {university.logo_url ? (
+                  <img
+                    src={university.logo_url}
+                    alt={`${university.name} logo`}
+                    className="h-20 w-20 rounded-lg object-cover border-2 border-border"
+                  />
+                ) : (
+                  <div className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center border-2 border-border">
+                    <Building2 className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex-1">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <h1 className="text-3xl font-bold mb-2">{university.name}</h1>
+                    <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
+                      {university.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {university.location}
+                        </span>
+                      )}
+                      <Badge variant="outline">{programs.length} programs</Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant={isSaved ? "default" : "outline"}
+                      onClick={handleSave}
+                    >
+                      <BookmarkPlus className="h-4 w-4 mr-2" />
+                      {isSaved ? "Saved" : "Save"}
+                    </Button>
+                    {university.website && (
+                      <a
+                        href={university.website.startsWith("http") ? university.website : `https://${university.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button variant="outline">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Website
+                        </Button>
+                      </a>
+                    )}
+                  </div>
+                </div>
+                
+                {university.description && (
+                  <p className="text-muted-foreground mt-4 leading-relaxed">
+                    {university.description}
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-8 lg:grid-cols-3">
+          {/* Main Content */}
+          <div className="lg:col-span-2">
+            {/* Programs */}
+            <Card className="shadow-medium border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <GraduationCap className="h-5 w-5" />
+                  <span>Academic Programs</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {programs.length > 0 ? (
+                  <div className="space-y-6">
+                    {programs.map((program) => (
+                      <Card key={program.id} className="border border-border/50">
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="text-lg font-semibold mb-2">{program.title}</h3>
+                              {program.degree_level && (
+                                <Badge variant="secondary" className="mb-2">
+                                  {program.degree_level}
+                                </Badge>
+                              )}
+                            </div>
+                            <Button onClick={() => handleApply(program.id)}>
+                              Apply Now
+                            </Button>
+                          </div>
+                          
+                          {program.description && (
+                            <p className="text-muted-foreground mb-4">{program.description}</p>
+                          )}
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            {program.duration && (
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                <span>{program.duration}</span>
+                              </div>
+                            )}
+                            {program.tuition_fee && (
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                <span>{program.tuition_fee}</span>
+                              </div>
+                            )}
+                            {program.application_deadline && (
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span>{new Date(program.application_deadline).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                            {program.delivery_mode && (
+                              <div className="flex items-center gap-2">
+                                <Globe className="h-4 w-4 text-muted-foreground" />
+                                <span>{program.delivery_mode}</span>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No programs available at this time.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Contact Info */}
+            <Card className="shadow-medium border-border/50">
+              <CardHeader>
+                <CardTitle>Contact Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {university.contact_email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <a 
+                      href={`mailto:${university.contact_email}`}
+                      className="text-sm hover:underline"
+                    >
+                      {university.contact_email}
+                    </a>
+                  </div>
+                )}
+                {university.phone && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{university.phone}</span>
+                  </div>
+                )}
+                {university.website && (
+                  <div className="flex items-center gap-3">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <a 
+                      href={university.website.startsWith("http") ? university.website : `https://${university.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm hover:underline"
+                    >
+                      Visit Website
+                    </a>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <Card className="shadow-medium border-border/50">
+              <CardHeader>
+                <CardTitle>Quick Stats</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Programs Offered</span>
+                  <Badge variant="outline">{programs.length}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Location</span>
+                  <span className="text-sm">{university.location || "Not specified"}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
