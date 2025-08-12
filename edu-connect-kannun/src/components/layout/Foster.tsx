@@ -1,60 +1,116 @@
-import { GraduationCap, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+    GraduationCap,
+    Menu,
+    X,
+    Moon,
+    Sun,
+    User,
+    Building2
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
-const footerLinks = {
-  students: [
-    { label: "Browse Universities", href: "/universities" },
-    { label: "Application Guide", href: "/guide" },
-    { label: "Scholarships", href: "/scholarships" },
-    { label: "Visa Information", href: "/visa" },
-    { label: "Student Stories", href: "/stories" }
-  ],
-  universities: [
-    { label: "Join as University", href: "/signup?type=university" },
-    { label: "Pricing", href: "/pricing" },
-    { label: "Success Stories", href: "/case-studies" },
-    { label: "Partner Program", href: "/partners" },
-    { label: "Analytics", href: "/analytics" }
-  ],
-  resources: [
-    { label: "Blog", href: "/blog" },
-    { label: "Country Guides", href: "/countries" },
-    { label: "Webinars", href: "/webinars" },
-    { label: "Downloads", href: "/downloads" },
-    { label: "FAQ", href: "/faq" }
-  ],
-  company: [
-    { label: "About Us", href: "/about" },
-    { label: "Careers", href: "/careers" },
-    { label: "Press", href: "/press" },
-    { label: "Contact", href: "/contact" },
-    { label: "Help Center", href: "/help" }
-  ]
-};
+interface HeaderProps {
+    isAuthenticated?: boolean;
+    userType?: 'student' | 'university' | null;
+    onToggleTheme?: () => void;
+    isDark?: boolean;
+}
 
-const socialLinks = [
-  { icon: Facebook, href: "#", label: "Facebook" },
-  { icon: Twitter, href: "#", label: "Twitter" },
-  { icon: Instagram, href: "#", label: "Instagram" },
-  { icon: Linkedin, href: "#", label: "LinkedIn" }
-];
+export function Header({ isAuthenticated = false, userType, onToggleTheme, isDark }: HeaderProps) {
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const navigate = useNavigate();
+    const { signOut } = useAuth();
 
-export function Footer() {
-  return (
-    <footer className="bg-primary text-primary-foreground">
-      <div className="container px-4 py-12 md:py-16">
-        {/* Main Footer Content */}
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-6">
-          {/* Brand Section */}
-          <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center space-x-2 mb-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-foreground text-primary">
-                <GraduationCap className="h-5 w-5" />
-              </div>
-              <span className="text-xl font-semibold">EduConnect Global</span>
-            </Link>
-            <p className="text-primary-foreground/80 mb-6 max-w-sm">
-              Your trusted partner in global education. Connecting students with universities 
-              worldwide to make international education dreams come true.
-            </p>
+    const handleAuthClick = (type: 'student' | 'university') => {
+        navigate(`/login?type=${type}`);
+    };
+
+    const handleLogout = async () => {
+        await signOut();
+        navigate('/');
+    };
+
+    return (
+        <header className="sticky top-0 z-50 w-full glass-header">
+            <div className="container flex h-16 items-center justify-between px-4 md:px-6">
+                {/* Logo */}
+                <Link to="/" className="flex items-center space-x-2 transition-smooth hover:scale-105">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                        <GraduationCap className="h-5 w-5" />
+                    </div>
+                    <span className="text-xl font-semibold text-foreground">EduConnect Global</span>
+                </Link>
+
+                {/* Desktop Navigation */}
+                <nav className="hidden md:flex items-center space-x-6">
+                    <Link
+                        to="/universities"
+                        className="text-muted-foreground hover:text-foreground transition-smooth"
+                    >
+                        Browse Universities
+                    </Link>
+                    <Link
+                        to="/resources"
+                        className="text-muted-foreground hover:text-foreground transition-smooth"
+                    >
+                        Resources
+                    </Link>
+                    <Link
+                        to="/about"
+                        className="text-muted-foreground hover:text-foreground transition-smooth"
+                    >
+                        About
+                    </Link>
+                </nav>
+
+                {/* Actions */}
+                <div className="flex items-center space-x-3">
+                    {/* Theme Toggle */}
+                    {onToggleTheme && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={onToggleTheme}
+                            className="h-9 w-9"
+                        >
+                            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                        </Button>
+                    )}
+
+                    {/* Auth Buttons */}
+                    {!isAuthenticated ? (
+                        <div className="hidden md:flex items-center space-x-2">
+                            <Button
+                                variant="ghost"
+                                onClick={() => handleAuthClick('student')}
+                                className="flex items-center space-x-2"
+                            >
+                                <User className="h-4 w-4" />
+                                <span>Student Login</span>
+                            </Button>
+                            <Button
+                                onClick={() => handleAuthClick('university')}
+                                className="flex items-center space-x-2"
+                            >
+                                <Building2 className="h-4 w-4" />
+                                <span>University Login</span>
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="hidden md:flex items-center space-x-3">
+                            <Badge variant="secondary" className="capitalize">
+                                {userType}
+                            </Badge>
+                            <Button
+                                variant="ghost"
+                                onClick={() => navigate(userType === 'student' ? '/student-dashboard' : '/university-dashboard')}
+                            >
+                                Dashboard
+                            </Button>
+                            <Button variant="ghost" onClick={handleLogout}>Logout</Button>
+                        </div>
  
