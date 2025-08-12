@@ -1,7 +1,22 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useState } from "react";
+import { Header } from "@/components/layout/Header";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import StudentDashboard from "./pages/StudentDashboard";
+import UniversityDashboard from "./pages/UniversityDashboard";
+import AnalyticsDashboard from "./pages/AnalyticsDashboard";
+import BrowseUniversities from "./pages/BrowseUniversities";
+import UniversityDetails from "./pages/UniversityDetails";
+import Resources from "./pages/Resources";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -61,3 +76,20 @@ function AppContent() {
   );
 }
 
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
+
+export default App;
