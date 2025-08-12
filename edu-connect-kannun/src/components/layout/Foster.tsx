@@ -113,4 +113,97 @@ export function Header({ isAuthenticated = false, userType, onToggleTheme, isDar
                             </Button>
                             <Button variant="ghost" onClick={handleLogout}>Logout</Button>
                         </div>
- 
+                    )}
+
+                    {/* Mobile Menu Toggle */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="md:hidden"
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    >
+                        {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                    </Button>
+                </div>
+            </div>
+
+            {/* Mobile Menu */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden border-t bg-background/95 backdrop-blur">
+                    <div className="container py-4 px-4">
+                        <nav className="flex flex-col space-y-3">
+                            <Link
+                                to="/universities"
+                                className="text-muted-foreground hover:text-foreground transition-smooth py-2"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                Browse Universities
+                            </Link>
+                            <Link
+                                to="/resources"
+                                className="text-muted-foreground hover:text-foreground transition-smooth py-2"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                Resources
+                            </Link>
+                            <Link
+                                to="/about"
+                                className="text-muted-foreground hover:text-foreground transition-smooth py-2"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                About
+                            </Link>
+
+                            {!isAuthenticated ? (
+                                <div className="flex flex-col space-y-2 pt-4 border-t">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => {
+                                            handleAuthClick('student');
+                                            setIsMobileMenuOpen(false);
+                                        }}
+                                        className="justify-start"
+                                    >
+                                        <User className="h-4 w-4 mr-2" />
+                                        Student Login
+                                    </Button>
+                                    <Button
+                                        onClick={() => {
+                                            handleAuthClick('university');
+                                            setIsMobileMenuOpen(false);
+                                        }}
+                                        className="justify-start"
+                                    >
+                                        <Building2 className="h-4 w-4 mr-2" />
+                                        University Login
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col space-y-2 pt-4 border-t">
+                                    <div className="flex items-center space-x-2">
+                                        <Badge variant="secondary" className="capitalize">
+                                            {userType}
+                                        </Badge>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => {
+                                            navigate(userType === 'student' ? '/student-dashboard' : '/university-dashboard');
+                                            setIsMobileMenuOpen(false);
+                                        }}
+                                        className="justify-start"
+                                    >
+                                        Dashboard
+                                    </Button>
+                                    <Button variant="ghost" className="justify-start" onClick={handleLogout}>
+                                        Logout
+                                    </Button>
+                                </div>
+                            )}
+                        </nav>
+                    </div>
+                </div>
+            )}
+        </header>
+    );
+}
