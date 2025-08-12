@@ -7,7 +7,22 @@ interface ProtectedRouteProps {
   requiredUserType?: 'student' | 'university';
 }
 
+export function ProtectedRoute({ children, requiredUserType }: ProtectedRouteProps) {
+  const { user, userType, loading } = useAuth();
+  const navigate = useNavigate();
 
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      if (requiredUserType && userType !== requiredUserType) {
+        navigate('/login');
+        return;
+      }
+    }
   }, [user, userType, loading, navigate, requiredUserType]);
 
   if (loading) {
