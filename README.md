@@ -31,5 +31,7 @@ Our platform transforms the traditional, complex university application process 
 
 ## 📁 Project Structure
 /frontend — React app for the user interface
+
 /backend — API server and Fire base & Supabase
+
 /models — Gemini API 
