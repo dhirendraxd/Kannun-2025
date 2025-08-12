@@ -7,7 +7,8 @@ export type Json =
     | Json[]
 
 export type Database = {
-
+    // Allows to automatically instanciate createClient with right options
+    // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
     __InternalSupabase: {
         PostgrestVersion: "13.0.4"
     }
@@ -54,7 +55,21 @@ export type Database = {
                     created_at: string
                     document_type: string
                     file_name: string | null
-      
+                    file_url: string | null
+                    id: string
+                    status: string
+                    updated_at: string
+                    user_id: string
+                }
+                Insert: {
+                    created_at?: string
+                    document_type: string
+                    file_name?: string | null
+                    file_url?: string | null
+                    id?: string
+                    status?: string
+                    updated_at?: string
+                    user_id: string
                 }
                 Update: {
                     created_at?: string
@@ -110,7 +125,18 @@ export type Database = {
                     updated_at?: string
                     user_id?: string
                     year_of_study?: string | null
-
+                }
+                Relationships: []
+            }
+            student_saved_universities: {
+                Row: {
+                    created_at: string
+                    id: string
+                    university_id: string
+                    user_id: string
+                }
+                Insert: {
+                    created_at?: string
                     id?: string
                     university_id: string
                     user_id: string
@@ -136,7 +162,30 @@ export type Database = {
                 Insert: {
                     actor_id?: string | null
                     created_at?: string
-
+                    event_type: string
+                    id?: string
+                    metadata?: Json
+                    program_id?: string | null
+                    university_id: string
+                }
+                Update: {
+                    actor_id?: string | null
+                    created_at?: string
+                    event_type?: string
+                    id?: string
+                    metadata?: Json
+                    program_id?: string | null
+                    university_id?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "university_analytics_events_program_id_fkey"
+                        columns: ["program_id"]
+                        isOneToOne: false
+                        referencedRelation: "university_programs"
+                        referencedColumns: ["id"]
+                    },
+                ]
             }
             university_profiles: {
                 Row: {
@@ -199,7 +248,16 @@ export type Database = {
                     updated_at: string
                 }
                 Insert: {
-                    applica
+                    application_deadline?: string | null
+                    created_at?: string
+                    degree_level?: string | null
+                    delivery_mode?: string | null
+                    description?: string | null
+                    duration?: string | null
+                    id?: string
+                    is_published?: boolean
+                    title: string
+                    tuition_fee?: string | null
                     university_id: string
                     updated_at?: string
                 }
@@ -238,3 +296,57 @@ export type Database = {
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+    DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+    TableName extends DefaultSchemaTableNameOrOptions extends {
+        schema: keyof DatabaseWithoutInternals
+    }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+}
+    ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+            Row: infer R
+        }
+    ? R
+    : never
+    : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+            Row: infer R
+        }
+    ? R
+    : never
+    : never
+
+export type TablesInsert<
+    DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+    TableName extends DefaultSchemaTableNameOrOptions extends {
+        schema: keyof DatabaseWithoutInternals
+    }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+}
+    ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+        Insert: infer I
+    }
+    ? I
+    : never
+    : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+    }
+    ? I
+    : never
+    : never
