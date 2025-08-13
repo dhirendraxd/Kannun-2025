@@ -21,11 +21,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Get user type from metadata
         if (session?.user?.user_metadata?.user_type) {
           setUserType(session.user.user_metadata.user_type);
         } else {
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
