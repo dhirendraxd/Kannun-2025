@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileDialog } from "@/components/dashboard/ProfileDialog";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -120,7 +120,7 @@ export default function UniversityDashboard() {
     document.title = "University Dashboard | EduConnect";
   }, []);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     
@@ -155,7 +155,7 @@ export default function UniversityDashboard() {
     setPrograms((progs as ProgramRow[]) || []);
 
     setLoading(false);
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchAll();
@@ -177,11 +177,12 @@ export default function UniversityDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, fetchAll]);
 
   const handleProfileSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user || !profile) return;
+    
     const { error } = await supabase
       .from("university_profiles")
       .update({
@@ -192,32 +193,109 @@ export default function UniversityDashboard() {
         contact_email: profile.contact_email,
         phone: profile.phone,
         is_published: profile.is_published,
+        updated_at: new Date().toISOString() // Ensure updated_at is set for proper ordering
       })
       .eq("id", user.id);
 
     if (error) {
       toast({ title: "Failed to save", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Profile saved" });
+      const statusMessage = profile.is_published 
+        ? "Profile saved and published! Your university is now visible to all students." 
+        : "Profile saved as draft. Toggle publish to make it visible to students.";
+      
+      toast({ 
+        title: "Profile saved successfully", 
+        description: statusMessage,
+        duration: 5000
+      });
+      
+      // Force refresh to ensure UI is in sync
+      fetchAll();
     }
   };
 
   const handleLogoUpload = async (file: File) => {
     if (!user) return;
+    
+    // Show loading toast
+    toast({ 
+      title: "Uploading logo...", 
+      description: "Please wait while we upload your logo"
+    });
+    
     const ext = file.name.split(".").pop();
     const path = `${user.id}/logo-${Date.now()}.${ext}`;
     const { error: uploadErr } = await supabase.storage.from("universities").upload(path, file, {
       upsert: false,
       cacheControl: "3600",
     });
+    
     if (uploadErr) {
       toast({ title: "Upload failed", description: uploadErr.message, variant: "destructive" });
       return;
     }
     const { data } = supabase.storage.from("universities").getPublicUrl(path);
     const publicUrl = data.publicUrl;
-    await supabase.from("university_profiles").update({ logo_url: publicUrl }).eq("id", user.id);
-    toast({ title: "Logo updated" });
+    
+    // Update logo and trigger updated_at
+    const { error: updateError } = await supabase
+      .from("university_profiles")
+      .update({ 
+        logo_url: publicUrl,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
+      
+    if (updateError) {
+      toast({ title: "Failed to update logo", description: updateError.message, variant: "destructive" });
+    } else {
+      toast({ 
+        title: "Logo updated successfully!", 
+        description: "Your logo is now visible on your public profile and the Browse Universities page",
+        duration: 4000
+      });
+      
+      // Update local state immediately for instant UI feedback
+      setProfile(prev => prev ? { ...prev, logo_url: publicUrl } : null);
+      
+      // Refresh to ensure everything is in sync
+      fetchAll();
+    }
+  };
+
+  const togglePublishStatus = async () => {
+    if (!user || !profile) return;
+    
+    const newStatus = !profile.is_published;
+    
+    const { error } = await supabase
+      .from("university_profiles")
+      .update({ 
+        is_published: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
+      
+    if (error) {
+      toast({ 
+        title: "Failed to update status", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } else {
+      const message = newStatus 
+        ? "🎉 Your university is now LIVE and visible to all students on the Browse Universities page!"
+        : "Your university profile is now hidden from public view. Students won't be able to see it until you publish again.";
+        
+      toast({ 
+        title: newStatus ? "University Published!" : "University Unpublished", 
+        description: message,
+        duration: 6000
+      });
+      
+      setProfile(prev => prev ? { ...prev, is_published: newStatus } : null);
+    }
   };
   const [newProgram, setNewProgram] = useState<Partial<ProgramRow>>({
     title: "",
@@ -355,6 +433,59 @@ export default function UniversityDashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            {/* University Status Card */}
+            <Card className={`shadow-medium border-l-4 ${profile?.is_published ? 'border-l-green-500 bg-green-50/50' : 'border-l-yellow-500 bg-yellow-50/50'}`}>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    <div>
+                      <span>University Status</span>
+                      <span className="text-sm font-normal text-muted-foreground block">
+                        {profile?.name || 'Your Institution'}
+                      </span>
+                    </div>
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={profile?.is_published ? "default" : "secondary"} className="text-sm">
+                      {profile?.is_published ? "🟢 LIVE" : "⚪ Hidden"}
+                    </Badge>
+                    {profile?.logo_url ? (
+                      <img 
+                        src={profile.logo_url} 
+                        alt={`${profile.name} logo`} 
+                        className="h-12 w-12 rounded object-cover border-2 border-border" 
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded bg-muted flex items-center justify-center border-2 border-border">
+                        <Building2 className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                </CardTitle>
+                <CardDescription>
+                  {profile?.is_published 
+                    ? "Your university is visible to all students on the Browse Universities page" 
+                    : "Your university is currently hidden from public view"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <Button 
+                    onClick={togglePublishStatus}
+                    variant={profile?.is_published ? "destructive" : "default"}
+                    size="lg"
+                    className="flex items-center gap-2"
+                  >
+                    {profile?.is_published ? "🔒 Make Private" : "🚀 Publish University"}
+                  </Button>
+                  <div className="text-sm text-muted-foreground text-right">
+                    <p>{profile?.is_published ? "Students can discover you" : "Only you can see your profile"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid gap-6 lg:grid-cols-3">
               {/* Quick Stats */}
               <div className="lg:col-span-2">
@@ -384,8 +515,21 @@ export default function UniversityDashboard() {
                             <Badge variant={profile?.is_published ? "default" : "secondary"}>
                               {profile?.is_published ? "Published" : "Draft"}
                             </Badge>
+                            {profile?.logo_url && (
+                              <p className="text-xs text-muted-foreground mt-1">✓ Logo uploaded</p>
+                            )}
                           </div>
-                          <Globe className="h-8 w-8 text-secondary" />
+                          <div className="flex items-center gap-2">
+                            {profile?.logo_url ? (
+                              <img 
+                                src={profile.logo_url} 
+                                alt="Logo preview" 
+                                className="h-10 w-10 rounded object-cover border-2 border-border" 
+                              />
+                            ) : (
+                              <Globe className="h-10 w-10 text-secondary" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -478,22 +622,35 @@ export default function UniversityDashboard() {
                   </div>
                   <div className="space-y-2 sm:col-span-2">
                     <Label>Logo</Label>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       {profile?.logo_url ? (
-                        <img src={profile.logo_url} alt="logo" className="h-12 w-12 rounded object-cover" />
+                        <img src={profile.logo_url} alt="logo" className="h-16 w-16 rounded object-cover border-2 border-border" />
                       ) : (
-                        <div className="h-12 w-12 rounded bg-muted flex items-center justify-center"><Building2 className="h-5 w-5 text-muted-foreground" /></div>
+                        <div className="h-16 w-16 rounded bg-muted flex items-center justify-center border-2 border-border"><Building2 className="h-8 w-8 text-muted-foreground" /></div>
                       )}
                       <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files && handleLogoUpload(e.target.files[0])} />
                       <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()} className="inline-flex items-center"><Upload className="h-4 w-4 mr-2" /> Upload Logo</Button>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between sm:col-span-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{profile?.is_published ? "Published" : "Hidden"}</Badge>
-                      <Button type="button" variant="ghost" onClick={() => setProfile((p) => p && { ...p, is_published: !p.is_published })}>
-                        Toggle Publish
+                  <div className="flex items-center justify-between sm:col-span-2 pt-4 border-t">
+                    <div className="flex items-center gap-3">
+                      <Badge variant={profile?.is_published ? "default" : "secondary"} className="text-sm">
+                        {profile?.is_published ? "🟢 LIVE" : "⚪ Hidden"}
+                      </Badge>
+                      <Button 
+                        type="button" 
+                        variant={profile?.is_published ? "destructive" : "default"}
+                        size="sm"
+                        onClick={togglePublishStatus}
+                        className="flex items-center gap-2"
+                      >
+                        {profile?.is_published ? "🔒 Make Private" : "🚀 Publish Live"}
                       </Button>
+                      <span className="text-xs text-muted-foreground">
+                        {profile?.is_published 
+                          ? "Visible to all students" 
+                          : "Only you can see this"}
+                      </span>
                     </div>
                     <div className="flex gap-2">
                       <Button 

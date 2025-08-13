@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,13 +18,13 @@ import {
   Lock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Login() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signIn } = useAuth();
+  const { signIn, user, userType, loading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -32,14 +32,23 @@ export default function Login() {
     password: ""
   });
 
-  const userType = searchParams.get('type') || 'student';
+  const targetUserType = searchParams.get('type') || 'student';
+
+  // Handle redirect after successful authentication
+  useEffect(() => {
+    if (user && userType && !loading) {
+      // Navigate to appropriate dashboard based on user type
+      const dashboardPath = userType === 'student' ? '/student-dashboard' : '/university-dashboard';
+      navigate(dashboardPath);
+    }
+  }, [user, userType, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const { error } = await signIn(formData.email, formData.password, userType as 'student' | 'university');
+      const { error } = await signIn(formData.email, formData.password, targetUserType as 'student' | 'university');
       
       if (error) {
         toast({
@@ -47,13 +56,14 @@ export default function Login() {
           description: error.message || "Invalid credentials. Please try again.",
           variant: "destructive"
         });
+        setIsLoading(false);
       } else {
         toast({
           title: "Login Successful!",
-          description: `Welcome back! Redirecting to your ${userType} dashboard.`,
+          description: `Welcome back! Redirecting to your dashboard.`,
         });
-        
-        navigate(userType === 'student' ? '/student-dashboard' : '/university-dashboard');
+        // Don't set loading to false here - let the useEffect handle the redirect
+        // The loading state will be managed by the auth context
       }
     } catch (error) {
       toast({
@@ -61,7 +71,6 @@ export default function Login() {
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -102,7 +111,7 @@ export default function Login() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            <Tabs value={userType} className="w-full">
+            <Tabs value={targetUserType} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger 
                   value="student" 
@@ -201,9 +210,9 @@ export default function Login() {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading}
+                disabled={isLoading || loading}
               >
-                {isLoading ? "Signing In..." : "Sign In"}
+                {isLoading || loading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
 
@@ -211,7 +220,7 @@ export default function Login() {
             <div className="text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
               <Link 
-                to={`/signup?type=${userType}`} 
+                to={`/signup?type=${targetUserType}`} 
                 className="text-primary hover:text-primary-hover transition-colors font-medium"
               >
                 Sign up here

@@ -11,7 +11,7 @@ import {
   Building2
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HeaderProps {
   isAuthenticated?: boolean;

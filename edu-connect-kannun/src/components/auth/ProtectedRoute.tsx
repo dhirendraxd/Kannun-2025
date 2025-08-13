@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,15 +13,21 @@ export function ProtectedRoute({ children, requiredUserType }: ProtectedRoutePro
 
   useEffect(() => {
     if (!loading) {
+      console.log('ProtectedRoute check:', { user: !!user, userType, requiredUserType });
+      
       if (!user) {
+        console.log('No user found, redirecting to login');
         navigate('/login');
         return;
       }
 
       if (requiredUserType && userType !== requiredUserType) {
-        navigate('/login');
+        console.log(`User type mismatch. Required: ${requiredUserType}, Got: ${userType}`);
+        navigate(`/login?type=${requiredUserType}`);
         return;
       }
+
+      console.log('ProtectedRoute: Access granted');
     }
   }, [user, userType, loading, navigate, requiredUserType]);
 
@@ -33,7 +39,11 @@ export function ProtectedRoute({ children, requiredUserType }: ProtectedRoutePro
     );
   }
 
-  if (!user || (requiredUserType && userType !== requiredUserType)) {
+  if (!user) {
+    return null;
+  }
+
+  if (requiredUserType && userType !== requiredUserType) {
     return null;
   }
 

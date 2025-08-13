@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ProfileDialog } from "@/components/dashboard/ProfileDialog";
 import { AIAssistant } from "@/components/dashboard/AIAssistant";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
