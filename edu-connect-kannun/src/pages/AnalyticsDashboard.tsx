@@ -77,8 +77,8 @@ export default function AnalyticsDashboard() {
               Back to Dashboard
             </Button>
             <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-blue-600" />
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+              <Activity className="h-5 w-5 text-primary" />
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-sm text-muted-foreground">Live Analytics</span>
             </div>
           </div>
@@ -88,74 +88,74 @@ export default function AnalyticsDashboard() {
 
         {/* Key Metrics */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card className="shadow-medium border-border/50">
+          <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-blue-300">Total Views</p>
-                  <p className="text-2xl font-bold text-blue-600">{metrics.totalViews.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">Total Views</p>
+                  <p className="text-2xl font-bold text-foreground">{metrics.totalViews.toLocaleString()}</p>
                 </div>
-                <div className="p-3 bg-blue-500/20 rounded-lg border border-blue-300/20">
-                  <Eye className="h-6 w-6 text-blue-600" />
+                <div className="p-3 bg-primary/20 rounded-lg">
+                  <Eye className="h-6 w-6 text-primary" />
                 </div>
               </div>
               <div className="flex items-center space-x-1 mt-2">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
-                <span className="text-sm text-emerald-500">+18% this month</span>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-600">+18% this month</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-medium border-border/50">
+          <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-emerald-300">Applications</p>
-                  <p className="text-2xl font-bold text-emerald-600">{metrics.totalApplications}</p>
+                  <p className="text-sm text-muted-foreground">Applications</p>
+                  <p className="text-2xl font-bold text-foreground">{metrics.totalApplications}</p>
                 </div>
-                <div className="p-3 bg-emerald-500/20 rounded-lg border border-emerald-300/20">
-                  <Users className="h-6 w-6 text-emerald-600" />
+                <div className="p-3 bg-secondary/30 rounded-lg">
+                  <Users className="h-6 w-6 text-secondary" />
                 </div>
               </div>
               <div className="flex items-center space-x-1 mt-2">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
-                <span className="text-sm text-emerald-500">+12% this month</span>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-600">+12% this month</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-medium border-border/50">
+          <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-purple-300">Student Engagement</p>
-                  <p className="text-2xl font-bold text-purple-600">{metrics.studentEngagement}%</p>
+                  <p className="text-sm text-muted-foreground">Student Engagement</p>
+                  <p className="text-2xl font-bold text-foreground">{metrics.studentEngagement}%</p>
                 </div>
-                <div className="p-3 bg-purple-500/20 rounded-lg border border-purple-300/20">
-                  <Target className="h-6 w-6 text-purple-600" />
+                <div className="p-3 bg-accent/30 rounded-lg">
+                  <Target className="h-6 w-6 text-accent" />
                 </div>
               </div>
               <div className="flex items-center space-x-1 mt-2">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
-                <span className="text-sm text-emerald-500">+5% this month</span>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-600">+5% this month</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-medium border-border/50">
+          <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-amber-300">Conversion Rate</p>
-                  <p className="text-2xl font-bold text-amber-600">{metrics.conversionRate}%</p>
+                  <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                  <p className="text-2xl font-bold text-foreground">{metrics.conversionRate}%</p>
                 </div>
-                <div className="p-3 bg-amber-500/20 rounded-lg border border-amber-300/20">
-                  <BarChart3 className="h-6 w-6 text-amber-600" />
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <BarChart3 className="h-6 w-6 text-primary" />
                 </div>
               </div>
               <div className="flex items-center space-x-1 mt-2">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
-                <span className="text-sm text-emerald-500">+3% this month</span>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-600">+3% this month</span>
               </div>
             </CardContent>
           </Card>
@@ -163,32 +163,32 @@ export default function AnalyticsDashboard() {
 
         <div className="grid gap-6 lg:grid-cols-2 mb-8">
           {/* Program Performance */}
-          <Card className="shadow-medium border-border/50">
+          <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-indigo-600">
+              <CardTitle className="flex items-center space-x-2 text-primary">
                 <Award className="h-5 w-5" />
                 <span>Program Performance</span>
               </CardTitle>
-              <CardDescription className="text-indigo-400">Views and applications by program</CardDescription>
+              <CardDescription>Views and applications by program</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {metrics.programPerformance.map((program, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50/50 to-blue-50/50 rounded-lg border border-indigo-100">
+                  <div key={index} className="flex items-center justify-between p-4 bg-secondary/5 rounded-lg border border-secondary/20 hover:bg-secondary/10 transition-colors">
                     <div>
-                      <h3 className="font-semibold text-indigo-700">{program.name}</h3>
+                      <h3 className="font-semibold text-foreground">{program.name}</h3>
                       <div className="flex items-center gap-4 text-sm">
-                        <span className="text-blue-600 flex items-center gap-1">
+                        <span className="text-primary flex items-center gap-1">
                           <Eye className="h-3 w-3" />
                           {program.views} views
                         </span>
-                        <span className="text-emerald-600 flex items-center gap-1">
+                        <span className="text-secondary flex items-center gap-1">
                           <Users className="h-3 w-3" />
                           {program.applications} applications
                         </span>
                       </div>
                     </div>
-                    <Badge variant="outline" className="border-indigo-200 text-indigo-600">
+                    <Badge variant="outline" className="border-primary/50 text-primary">
                       {((program.applications / program.views) * 100).toFixed(1)}% conversion
                     </Badge>
                   </div>
@@ -198,27 +198,27 @@ export default function AnalyticsDashboard() {
           </Card>
 
           {/* Geographic Distribution */}
-          <Card className="shadow-medium border-border/50">
+          <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-emerald-600">
+              <CardTitle className="flex items-center space-x-2 text-secondary">
                 <Globe2 className="h-5 w-5" />
                 <span>Top Countries</span>
               </CardTitle>
-              <CardDescription className="text-emerald-400">Applications by country</CardDescription>
+              <CardDescription>Applications by country</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {metrics.topCountries.map((country, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50/50 to-green-50/50 rounded-lg border border-emerald-100">
+                  <div key={index} className="flex items-center justify-between p-3 bg-accent/5 rounded-lg border border-accent/20 hover:bg-accent/10 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                        <MapPin className="h-4 w-4 text-emerald-600" />
+                      <div className="w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center">
+                        <MapPin className="h-4 w-4 text-accent" />
                       </div>
-                      <span className="font-medium text-emerald-700">{country.name}</span>
+                      <span className="font-medium text-foreground">{country.name}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-semibold text-emerald-600">{country.applications}</span>
-                      <p className="text-xs text-emerald-500">applications</p>
+                      <span className="text-sm font-semibold text-secondary">{country.applications}</span>
+                      <p className="text-xs text-muted-foreground">applications</p>
                     </div>
                   </div>
                 ))}
@@ -228,34 +228,34 @@ export default function AnalyticsDashboard() {
         </div>
 
         {/* Monthly Trends */}
-        <Card className="shadow-medium border-border/50">
+        <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-violet-600">
+            <CardTitle className="flex items-center space-x-2 text-primary">
               <Calendar className="h-5 w-5" />
               <span>Monthly Trends</span>
             </CardTitle>
-            <CardDescription className="text-violet-400">Views and applications over the last 6 months</CardDescription>
+            <CardDescription>Views and applications over the last 6 months</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
               {metrics.monthlyTrend.map((month, index) => (
-                <div key={index} className="p-4 bg-gradient-to-br from-violet-50/50 to-purple-50/50 rounded-lg border border-violet-100">
+                <div key={index} className="p-4 bg-secondary/5 rounded-lg border border-secondary/20 hover:bg-secondary/10 transition-colors">
                   <div className="text-center">
-                    <h3 className="font-semibold text-violet-700 mb-2">{month.month}</h3>
+                    <h3 className="font-semibold text-foreground mb-2">{month.month}</h3>
                     <div className="space-y-2">
-                      <div className="p-2 bg-blue-50/70 rounded border border-blue-100">
-                        <p className="text-xs text-blue-500 flex items-center justify-center gap-1">
+                      <div className="p-2 bg-primary/10 rounded border border-primary/20">
+                        <p className="text-xs text-primary flex items-center justify-center gap-1">
                           <Eye className="h-3 w-3" />
                           Views
                         </p>
-                        <p className="text-sm font-bold text-blue-600">{month.views}</p>
+                        <p className="text-sm font-bold text-primary">{month.views}</p>
                       </div>
-                      <div className="p-2 bg-emerald-50/70 rounded border border-emerald-100">
-                        <p className="text-xs text-emerald-500 flex items-center justify-center gap-1">
+                      <div className="p-2 bg-secondary/10 rounded border border-secondary/20">
+                        <p className="text-xs text-secondary flex items-center justify-center gap-1">
                           <Users className="h-3 w-3" />
                           Apps
                         </p>
-                        <p className="text-sm font-bold text-emerald-600">{month.applications}</p>
+                        <p className="text-sm font-bold text-secondary">{month.applications}</p>
                       </div>
                     </div>
                   </div>
@@ -267,52 +267,52 @@ export default function AnalyticsDashboard() {
 
         {/* Real-time Insights */}
         <div className="mt-8 grid gap-6 md:grid-cols-3">
-          <Card className="shadow-medium border-border/50">
+          <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-destructive/10 rounded-lg">
-                  <Clock className="h-5 w-5 text-destructive" />
+                <div className="p-2 bg-primary/20 rounded-lg">
+                  <Clock className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-destructive">Peak Hours</h3>
+                  <h3 className="font-semibold text-foreground">Peak Hours</h3>
                   <p className="text-sm text-muted-foreground">Most active time</p>
                 </div>
               </div>
-              <p className="text-xl font-bold text-destructive">2-4 PM EST</p>
+              <p className="text-xl font-bold text-primary">2-4 PM EST</p>
               <p className="text-sm text-muted-foreground mt-1">+35% activity during this window</p>
             </CardContent>
           </Card>
 
-          <Card className="shadow-medium border-border/50">
+          <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-success/10 rounded-lg">
-                  <BookmarkCheck className="h-5 w-5 text-success" />
+                <div className="p-2 bg-secondary/20 rounded-lg">
+                  <BookmarkCheck className="h-5 w-5 text-secondary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-success">Save Rate</h3>
+                  <h3 className="font-semibold text-foreground">Save Rate</h3>
                   <p className="text-sm text-muted-foreground">Programs bookmarked</p>
                 </div>
               </div>
-              <p className="text-xl font-bold text-success">{((metrics.savedByStudents / metrics.totalViews) * 100).toFixed(1)}%</p>
+              <p className="text-xl font-bold text-secondary">{((metrics.savedByStudents / metrics.totalViews) * 100).toFixed(1)}%</p>
               <p className="text-sm text-muted-foreground mt-1">Students saving programs</p>
             </CardContent>
           </Card>
 
-          <Card className="shadow-medium border-border/50">
+          <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-warning/10 rounded-lg">
-                  <Activity className="h-5 w-5 text-warning" />
+                <div className="p-2 bg-accent/20 rounded-lg">
+                  <Activity className="h-5 w-5 text-accent" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-warning">Live Status</h3>
+                  <h3 className="font-semibold text-foreground">Live Status</h3>
                   <p className="text-sm text-muted-foreground">Current activity</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-success rounded-full animate-pulse"></div>
-                <p className="text-sm font-medium text-warning">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <p className="text-sm font-medium text-foreground">
                   {Math.floor(Math.random() * 15) + 5} users browsing
                 </p>
               </div>
