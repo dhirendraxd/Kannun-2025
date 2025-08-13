@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-    GraduationCap,
-    ArrowLeft,
-    Mail,
-    Lock,
-    UserIcon,
-    Phone
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+//     GraduationCap,
+//     ArrowLeft,
+//     Mail,
+//     Lock,
+//     UserIcon,
+//     Phone
+// } from "lucide-react";
+// import { useToast } from "@/hooks/use-toast";
+// import { useAuth } from "@/contexts/AuthContext";
 
 export default function Signup() {
     const [searchParams] = useSearchParams();
