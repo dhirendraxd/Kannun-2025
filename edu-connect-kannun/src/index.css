@@ -2,35 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* EduConnect Global Design System
+Blue and White Gradient Theme - Clean, Professional, Expert UI
+Typography: Inter with medium weight, line-height 1.5, letter-spacing -1px
+All colors MUST be HSL.
+*/
 
 @layer base {
   :root {
+    /* Base colors - Blue and White Theme */
     --background: 0 0% 100%;
     --foreground: 220 20% 20%;
     
-
+    /* Card system */
     --card: 0 0% 100%;
     --card-foreground: 220 20% 20%;
     
-    
+    /* Popover system */
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 20%;
     
-   
+    /* Primary - Deep Blue */
     --primary: 220 60% 35%;
     --primary-foreground: 0 0% 100%;
     --primary-hover: 220 65% 30%;
-   
+    
+    /* Secondary - Light Blue */
     --secondary: 210 50% 85%;
     --secondary-foreground: 220 20% 20%;
     --secondary-hover: 210 50% 80%;
     
-   
+    /* Accent - Bright Blue */
     --accent: 210 80% 60%;
     --accent-foreground: 0 0% 100%;
     --accent-hover: 210 85% 55%;
     
-   
+    /* Supporting colors */
     --muted: 210 30% 95%;
     --muted-foreground: 220 15% 50%;
     
@@ -41,25 +48,26 @@
     --input: 210 25% 90%;
     --ring: 220 60% 35%;
     
-
+    /* Success and info */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 98%;
     --info: 210 80% 60%;
     --info-foreground: 0 0% 100%;
     
+    /* Blue and White Gradients */
     --gradient-hero: linear-gradient(135deg, hsl(220 60% 35%), hsl(210 80% 60%), hsl(0 0% 100%));
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 30% 95%));
     --gradient-accent: linear-gradient(90deg, hsl(210 80% 60%), hsl(220 60% 35%));
     --gradient-blue: linear-gradient(180deg, hsl(210 80% 60%), hsl(220 60% 35%));
     --gradient-white: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 30% 95%));
     
- 
+    /* Shadows */
     --shadow-soft: 0 2px 10px -3px hsl(210 22% 22% / 0.08);
     --shadow-medium: 0 4px 20px -6px hsl(210 22% 22% / 0.12);
     --shadow-large: 0 8px 30px -12px hsl(210 22% 22% / 0.15);
     --shadow-glow: 0 0 0 1px hsl(197 92% 61% / 0.2);
     
- 
+    /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
@@ -83,33 +91,34 @@
   }
 
   .dark {
-    
+    /* Base colors - dark mode blue theme */
     --background: 220 25% 10%;
     --foreground: 0 0% 95%;
     
+    /* Card system - dark mode */
     --card: 220 20% 15%;
     --card-foreground: 0 0% 95%;
     
-    
+    /* Popover system - dark mode */
     --popover: 220 20% 15%;
     --popover-foreground: 0 0% 95%;
     
-  
+    /* Primary - bright blue for dark mode */
     --primary: 210 80% 60%;
     --primary-foreground: 220 25% 10%;
     --primary-hover: 210 85% 55%;
     
-    
+    /* Secondary - dark blue for dark mode */
     --secondary: 220 40% 25%;
     --secondary-foreground: 0 0% 95%;
     --secondary-hover: 220 45% 30%;
     
-    
+    /* Accent - bright blue accent */
     --accent: 210 80% 60%;
     --accent-foreground: 220 25% 10%;
     --accent-hover: 210 85% 55%;
     
-    
+    /* Supporting colors - dark mode */
     --muted: 220 20% 20%;
     --muted-foreground: 220 10% 65%;
     
@@ -120,25 +129,26 @@
     --input: 220 20% 25%;
     --ring: 210 80% 60%;
     
+    /* Success and info - dark mode */
     --success: 142 76% 45%;
     --success-foreground: 220 25% 10%;
     --info: 210 80% 60%;
     --info-foreground: 220 25% 10%;
     
-    
+    /* Blue Gradients - dark mode */
     --gradient-hero: linear-gradient(135deg, hsl(220 25% 10%), hsl(210 80% 60%), hsl(220 40% 25%));
     --gradient-card: linear-gradient(145deg, hsl(220 20% 15%), hsl(220 25% 10%));
     --gradient-accent: linear-gradient(90deg, hsl(210 80% 60%), hsl(220 60% 40%));
     --gradient-blue: linear-gradient(180deg, hsl(210 80% 60%), hsl(220 60% 35%));
     --gradient-white: linear-gradient(180deg, hsl(220 20% 15%), hsl(220 25% 10%));
     
-  
+    /* Shadows - dark mode */
     --shadow-soft: 0 2px 10px -3px hsl(0 0% 0% / 0.3);
     --shadow-medium: 0 4px 20px -6px hsl(0 0% 0% / 0.4);
     --shadow-large: 0 8px 30px -12px hsl(0 0% 0% / 0.5);
     --shadow-glow: 0 0 0 1px hsl(197 92% 61% / 0.3);
     
- 
+    /* Sidebar - dark mode */
     --sidebar-background: 210 22% 10%;
     --sidebar-foreground: 210 20% 95%;
     --sidebar-primary: 197 92% 61%;
@@ -164,7 +174,7 @@
 }
 
 @layer components {
- 
+  /* Glassmorphism Design System */
   .glass-card {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(20px);
@@ -216,6 +226,8 @@
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
+  
+  /* Dark mode glass effects */
   .dark .glass-card {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -233,7 +245,7 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
   
-
+  /* Custom component styles using design system */
   .hero-gradient {
     background: var(--gradient-hero);
   }
