@@ -376,58 +376,76 @@ export default function UniversityDashboard() {
       return;
     }
     
-    const { error } = await supabase.from("university_programs").insert({
-      university_id: user.id,
-      title: newProgram.title,
-      degree_level: newProgram.degree_level,
-      duration: newProgram.duration,
-      tuition_fee: newProgram.tuition_fee,
-      description: newProgram.description,
-      delivery_mode: newProgram.delivery_mode,
-      application_deadline: newProgram.application_deadline || null,
-      is_published: newProgram.is_published ?? true,
-      special_requirements: newProgram.special_requirements || null,
-      additional_criteria: newProgram.additional_criteria || null,
-      has_scholarships: newProgram.has_scholarships ?? false,
-      scholarship_type: newProgram.scholarship_type || null,
-      scholarship_criteria: newProgram.scholarship_criteria || null,
-      scholarship_amount: newProgram.scholarship_amount || null,
-      scholarship_percentage: newProgram.scholarship_percentage || null,
-    });
-    
-    if (error) {
-      toast({ 
-        title: "Failed to add program", 
-        description: error.message, 
-        variant: "destructive" 
-      });
-    } else {
-      const statusMessage = newProgram.is_published 
-        ? "Program added and published! Students can now see it on the Browse Universities page."
-        : "Program added as draft. You can publish it later to make it visible to students.";
-        
-      toast({ 
-        title: "Program added successfully!", 
-        description: statusMessage,
-        duration: 5000
+    try {
+      const { error } = await supabase.from("university_programs").insert({
+        university_id: user.id,
+        title: newProgram.title,
+        degree_level: newProgram.degree_level || null,
+        duration: newProgram.duration || null,
+        tuition_fee: newProgram.tuition_fee || null,
+        description: newProgram.description || null,
+        delivery_mode: newProgram.delivery_mode || null,
+        application_deadline: newProgram.application_deadline || null,
+        is_published: newProgram.is_published ?? true,
+        // Only include these fields if they exist in the database schema
+        ...(newProgram.special_requirements && { special_requirements: newProgram.special_requirements }),
+        ...(newProgram.additional_criteria && { additional_criteria: newProgram.additional_criteria }),
+        ...(newProgram.has_scholarships !== undefined && { has_scholarships: newProgram.has_scholarships }),
+        ...(newProgram.scholarship_type && { scholarship_type: newProgram.scholarship_type }),
+        ...(newProgram.scholarship_criteria && { scholarship_criteria: newProgram.scholarship_criteria }),
+        ...(newProgram.scholarship_amount && { scholarship_amount: newProgram.scholarship_amount }),
+        ...(newProgram.scholarship_percentage && { scholarship_percentage: newProgram.scholarship_percentage }),
       });
       
-      setNewProgram({ 
-        title: "", 
-        degree_level: "", 
-        duration: "", 
-        tuition_fee: "", 
-        description: "", 
-        delivery_mode: "", 
-        application_deadline: "", 
-        is_published: true,
-        special_requirements: "",
-        additional_criteria: "",
-        has_scholarships: false,
-        scholarship_type: "",
-        scholarship_criteria: "",
-        scholarship_amount: "",
-        scholarship_percentage: "",
+      if (error) {
+        // Check if error is related to missing columns
+        if (error.message.includes('additional_criteria') || error.message.includes('special_requirements')) {
+          toast({ 
+            title: "Database Update Required", 
+            description: "Please contact the administrator to update the database schema. Some new features are not yet available.",
+            variant: "destructive" 
+          });
+        } else {
+          toast({ 
+            title: "Failed to add program", 
+            description: error.message, 
+            variant: "destructive" 
+          });
+        }
+      } else {
+        const statusMessage = newProgram.is_published 
+          ? "Program added and published! Students can now see it on the Browse Universities page."
+          : "Program added as draft. You can publish it later to make it visible to students.";
+          
+        toast({ 
+          title: "Program added successfully!", 
+          description: statusMessage,
+          duration: 5000
+        });
+        
+        setNewProgram({ 
+          title: "", 
+          degree_level: "", 
+          duration: "", 
+          tuition_fee: "", 
+          description: "", 
+          delivery_mode: "", 
+          application_deadline: "", 
+          is_published: true,
+          special_requirements: "",
+          additional_criteria: "",
+          has_scholarships: false,
+          scholarship_type: "",
+          scholarship_criteria: "",
+          scholarship_amount: "",
+          scholarship_percentage: "",
+        });
+      }
+    } catch (error: unknown) {
+      toast({ 
+        title: "Unexpected error", 
+        description: "An unexpected error occurred while adding the program.",
+        variant: "destructive" 
       });
     }
   };
@@ -473,38 +491,72 @@ export default function UniversityDashboard() {
       return;
     }
 
-    const { error } = await supabase
-      .from("university_programs")
-      .update({
+    try {
+      const updateData: Record<string, unknown> = {
         title: editForm.title,
-        degree_level: editForm.degree_level,
-        duration: editForm.duration,
-        tuition_fee: editForm.tuition_fee,
-        description: editForm.description,
-        delivery_mode: editForm.delivery_mode,
+        degree_level: editForm.degree_level || null,
+        duration: editForm.duration || null,
+        tuition_fee: editForm.tuition_fee || null,
+        description: editForm.description || null,
+        delivery_mode: editForm.delivery_mode || null,
         application_deadline: editForm.application_deadline || null,
         is_published: editForm.is_published ?? true,
-        special_requirements: editForm.special_requirements || null,
-        additional_criteria: editForm.additional_criteria || null,
-        has_scholarships: editForm.has_scholarships ?? false,
-        scholarship_type: editForm.scholarship_type || null,
-        scholarship_criteria: editForm.scholarship_criteria || null,
-        scholarship_amount: editForm.scholarship_amount || null,
-        scholarship_percentage: editForm.scholarship_percentage || null,
         updated_at: new Date().toISOString()
-      })
-      .eq("id", id);
+      };
 
-    if (error) {
-      toast({ title: "Failed to update program", description: error.message, variant: "destructive" });
-    } else {
+      // Only include new fields if they exist
+      if (editForm.special_requirements !== undefined) {
+        updateData.special_requirements = editForm.special_requirements || null;
+      }
+      if (editForm.additional_criteria !== undefined) {
+        updateData.additional_criteria = editForm.additional_criteria || null;
+      }
+      if (editForm.has_scholarships !== undefined) {
+        updateData.has_scholarships = editForm.has_scholarships;
+      }
+      if (editForm.scholarship_type !== undefined) {
+        updateData.scholarship_type = editForm.scholarship_type || null;
+      }
+      if (editForm.scholarship_criteria !== undefined) {
+        updateData.scholarship_criteria = editForm.scholarship_criteria || null;
+      }
+      if (editForm.scholarship_amount !== undefined) {
+        updateData.scholarship_amount = editForm.scholarship_amount || null;
+      }
+      if (editForm.scholarship_percentage !== undefined) {
+        updateData.scholarship_percentage = editForm.scholarship_percentage || null;
+      }
+
+      const { error } = await supabase
+        .from("university_programs")
+        .update(updateData)
+        .eq("id", id);
+
+      if (error) {
+        if (error.message.includes('additional_criteria') || error.message.includes('special_requirements')) {
+          toast({ 
+            title: "Database Update Required", 
+            description: "Please contact the administrator to update the database schema. Some new features are not yet available.",
+            variant: "destructive" 
+          });
+        } else {
+          toast({ title: "Failed to update program", description: error.message, variant: "destructive" });
+        }
+      } else {
+        toast({ 
+          title: "Program updated successfully!", 
+          description: editForm.is_published ? "Program is now published and visible to students" : "Program saved as draft",
+          duration: 4000 
+        });
+        setEditingProgram(null);
+        setEditForm({});
+      }
+    } catch (error: unknown) {
       toast({ 
-        title: "Program updated successfully!", 
-        description: editForm.is_published ? "Program is now published and visible to students" : "Program saved as draft",
-        duration: 4000 
+        title: "Unexpected error", 
+        description: "An unexpected error occurred while updating the program.",
+        variant: "destructive" 
       });
-      setEditingProgram(null);
-      setEditForm({});
     }
   };
 

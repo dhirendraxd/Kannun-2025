@@ -234,42 +234,63 @@ export type Database = {
       }
       university_programs: {
         Row: {
+          additional_criteria: string | null
           application_deadline: string | null
           created_at: string
           degree_level: string | null
           delivery_mode: string | null
           description: string | null
           duration: string | null
+          has_scholarships: boolean | null
           id: string
           is_published: boolean
+          scholarship_amount: string | null
+          scholarship_criteria: string | null
+          scholarship_percentage: string | null
+          scholarship_type: string | null
+          special_requirements: string | null
           title: string
           tuition_fee: string | null
           university_id: string
           updated_at: string
         }
         Insert: {
+          additional_criteria?: string | null
           application_deadline?: string | null
           created_at?: string
           degree_level?: string | null
           delivery_mode?: string | null
           description?: string | null
           duration?: string | null
+          has_scholarships?: boolean | null
           id?: string
           is_published?: boolean
+          scholarship_amount?: string | null
+          scholarship_criteria?: string | null
+          scholarship_percentage?: string | null
+          scholarship_type?: string | null
+          special_requirements?: string | null
           title: string
           tuition_fee?: string | null
           university_id: string
           updated_at?: string
         }
         Update: {
+          additional_criteria?: string | null
           application_deadline?: string | null
           created_at?: string
           degree_level?: string | null
           delivery_mode?: string | null
           description?: string | null
           duration?: string | null
+          has_scholarships?: boolean | null
           id?: string
           is_published?: boolean
+          scholarship_amount?: string | null
+          scholarship_criteria?: string | null
+          scholarship_percentage?: string | null
+          scholarship_type?: string | null
+          special_requirements?: string | null
           title?: string
           tuition_fee?: string | null
           university_id?: string
