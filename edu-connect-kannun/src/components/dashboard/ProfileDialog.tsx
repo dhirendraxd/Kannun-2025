@@ -21,6 +21,7 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -39,15 +40,23 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
     if (!user) return;
 
     try {
+      console.log('Loading profile data for dialog...');
       if (userType === 'student') {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('student_profiles')
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
 
+        console.log('Profile data loaded:', data);
+        
+        if (error) {
+          console.error('Error loading profile data:', error);
+          return;
+        }
+
         if (data) {
-          setFormData({
+          const newFormData = {
             fullName: data.full_name || "",
             email: data.email || user.email || "",
             phone: data.phone || "",
@@ -59,11 +68,21 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
             specialization: data.specialization || "",
             yearOfStudy: data.year_of_study || "",
             gpa: data.gpa || ""
-          });
+          };
+          console.log('Setting form data:', newFormData);
+          setFormData(newFormData);
         } else {
           // Set defaults for new profile
+          console.log('No profile found, setting defaults');
           setFormData(prev => ({
             ...prev,
+            fullName: "",
+            phone: "",
+            country: "",
+            bio: "",
+            specialization: "",
+            yearOfStudy: "",
+            gpa: "",
             email: user.email || ""
           }));
         }
@@ -103,14 +122,29 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
   // Load existing profile data when dialog opens
   useEffect(() => {
     if (isOpen && user) {
+      console.log('Dialog opened, loading fresh profile data...');
       loadProfileData();
     }
-  }, [isOpen, user, loadProfileData]);
+  }, [isOpen, user, loadProfileData, refreshKey]);
+
+  // Handle dialog close
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+      console.log('Dialog opened, forcing fresh data load...');
+      setRefreshKey(prev => prev + 1);
+    } else {
+      console.log('Dialog closed, resetting loading state');
+      setIsLoading(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    console.log('Input changed:', { name, value });
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: value
     }));
   };
 
@@ -119,31 +153,97 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
     setIsLoading(true);
 
     try {
+      console.log('=== PROFILE UPDATE DEBUG ===');
+      console.log('User object:', user);
+      console.log('User ID:', user?.id);
+      console.log('Submitting profile data:', formData);
+      
+      // Check authentication
+      if (!user || !user.id) {
+        throw new Error('User not authenticated. Please log in again.');
+      }
+      
+      // Validate required fields
+      if (!formData.fullName?.trim()) {
+        throw new Error('Full name is required');
+      }
+      
+      if (!formData.email?.trim()) {
+        throw new Error('Email is required');
+      }
+      
       if (userType === 'student') {
-        await supabase
+        const profileData = {
+          user_id: user.id,
+          full_name: formData.fullName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone?.trim() || null,
+          country: formData.country?.trim() || null,
+          bio: formData.bio?.trim() || null,
+          specialization: formData.specialization?.trim() || null,
+          year_of_study: formData.yearOfStudy || null,
+          gpa: formData.gpa?.trim() || null
+        };
+        
+        console.log('Upserting student profile with data:', profileData);
+        
+        // First, let's try to see if there's an existing profile
+        const { data: existingProfile, error: checkError } = await supabase
           .from('student_profiles')
-          .upsert({
-            user_id: user.id,
-            full_name: formData.fullName,
-            email: formData.email,
-            phone: formData.phone,
-            country: formData.country,
-            bio: formData.bio,
-            specialization: formData.specialization,
-            year_of_study: formData.yearOfStudy,
-            gpa: formData.gpa
-          });
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        console.log('Existing profile check:', { existingProfile, checkError });
+        
+        const { data, error } = await supabase
+          .from('student_profiles')
+          .upsert(profileData, {
+            onConflict: 'user_id'
+          })
+          .select();
+        
+        if (error) {
+          console.error('=== DETAILED DATABASE ERROR ===');
+          console.error('Error message:', error.message);
+          console.error('Error code:', error.code);
+          console.error('Error details:', error.details);
+          console.error('Error hint:', error.hint);
+          console.error('Full error object:', error);
+          throw new Error(`Database error: ${error.message}`);
+        }
+        
+        console.log('Profile updated successfully:', data);
       } else {
-        await supabase
+        const universityData = {
+          id: user.id,
+          name: formData.fullName?.trim() || formData.institution?.trim(),
+          contact_email: formData.email.trim(),
+          phone: formData.phone?.trim() || null,
+          description: formData.bio?.trim() || null,
+          website: formData.website?.trim() || null
+        };
+        
+        console.log('Upserting university profile:', universityData);
+        
+        const { data, error } = await supabase
           .from('university_profiles')
-          .upsert({
-            id: user.id,
-            name: formData.fullName || formData.institution,
-            contact_email: formData.email,
-            phone: formData.phone,
-            description: formData.bio,
-            website: formData.website
+          .upsert(universityData, {
+            onConflict: 'id'
+          })
+          .select();
+        
+        if (error) {
+          console.error('Database error details:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
           });
+          throw new Error(`Database error: ${error.message}`);
+        }
+        
+        console.log('University profile updated successfully:', data);
       }
 
       setIsLoading(false);
@@ -155,20 +255,46 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
       
       // Call the callback to refresh the parent component
       if (onProfileUpdate) {
+        console.log('Calling onProfileUpdate callback...');
         onProfileUpdate();
       }
     } catch (error) {
+      console.error('=== PROFILE UPDATE ERROR ===');
+      console.error('Error type:', typeof error);
+      console.error('Error message:', error?.message);
+      console.error('Error stack:', error?.stack);
+      console.error('Full error:', error);
+      
       setIsLoading(false);
+      
+      let errorMessage = "Failed to update profile. Please try again.";
+      
+      if (error?.message) {
+        if (error.message.includes('not authenticated')) {
+          errorMessage = "Please log in again to update your profile.";
+        } else if (error.message.includes('duplicate key') || error.message.includes('unique constraint')) {
+          errorMessage = "Profile already exists. Please try refreshing the page.";
+        } else if (error.message.includes('not null constraint') || error.message.includes('required')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('permission denied') || error.message.includes('unauthorized')) {
+          errorMessage = "You don't have permission to update this profile.";
+        } else if (error.message.includes('network') || error.message.includes('connection')) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        } else if (error.message.startsWith('Database error:')) {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Update Failed",
-        description: "Failed to update profile. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
@@ -307,7 +433,7 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
 
               <div className="space-y-2">
                 <Label htmlFor="yearOfStudy">Year of Study</Label>
-                <Select onValueChange={(value) => setFormData(prev => ({ ...prev, yearOfStudy: value }))}>
+                <Select value={formData.yearOfStudy} onValueChange={(value) => setFormData(prev => ({ ...prev, yearOfStudy: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select year" />
                   </SelectTrigger>
@@ -348,6 +474,15 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
           </div>
 
           <div className="flex justify-end space-x-2">
+            {/* Debug button - remove in production */}
+            <Button type="button" variant="secondary" size="sm" onClick={() => {
+              console.log('=== FORM DATA DEBUG ===');
+              console.log('Current form data:', formData);
+              console.log('User:', user);
+              console.log('User ID:', user?.id);
+            }}>
+              Debug
+            </Button>
             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
