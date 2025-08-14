@@ -952,47 +952,123 @@ export default function StudentDashboard() {
 
   const profileCompleteness = calculateProfileCompleteness();
 
-  // AI Course Suggestion Function
+  // AI Course Suggestion Function - Enhanced with database integration
   const generateAICourseSuggestions = async () => {
-    if (documents.filter(doc => doc.status === 'uploaded').length === 0) {
-      toast({
-        title: "No documents found",
-        description: "Please upload documents first to get AI course suggestions.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
       setGeneratingCourseSuggestions(true);
 
-      // Get available universities and programs from database
-      const availableUniversities = universities.filter(uni => uni.is_published);
-      const availablePrograms = [];
+      console.log("🚀 Starting AI course analysis with database integration...");
+
+      const userProfile = profile;
+      const desiredDegree = userProfile?.year_of_study; // Using as degree preference
       
-      availableUniversities.forEach(uni => {
-        if (uni.university_programs) {
-          uni.university_programs.forEach(program => {
-            if (program.is_published) {
-              availablePrograms.push({
-                ...program,
-                university: uni
-              });
-            }
-          });
+      if (!userProfile || !desiredDegree) {
+        toast({
+          title: "Profile Information Needed",
+          description: "Please update your profile with desired degree information for better recommendations.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // 1. Fetch student documents to assess document completeness
+      console.log("📄 Fetching student documents...");
+      const { data: studentDocs, error: docsError } = await supabase
+        .from('student_documents')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (docsError) {
+        console.error("Error fetching student documents:", docsError);
+      }
+
+      const uploadedDocs = studentDocs?.filter(doc => doc.status === 'uploaded') || [];
+      
+      // Check if user has uploaded documents
+      if (uploadedDocs.length === 0) {
+        toast({
+          title: "Upload Documents First",
+          description: "Please upload your academic documents to get personalized AI course recommendations.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // 2. Fetch university programs from database
+      console.log("🏫 Fetching university programs from database...");
+      
+      // Fetch programs first
+      const { data: programs, error: programsError } = await supabase
+        .from('university_programs')
+        .select('*')
+        .eq('is_published', true);
+
+      if (programsError) {
+        console.error("Error fetching programs:", programsError);
+        toast({
+          title: "Database Error",
+          description: "Failed to fetch program data. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!programs || programs.length === 0) {
+        toast({
+          title: "No Programs Found",
+          description: "No published programs available in the database.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get university details separately
+      const universityIds = [...new Set(programs.map(p => p.university_id).filter(Boolean))];
+      let universityData = {};
+      
+      if (universityIds.length > 0) {
+        const { data: universities, error: universitiesError } = await supabase
+          .from('university_profiles')
+          .select('id, name, location, logo_url, website')
+          .in('id', universityIds)
+          .eq('is_published', true);
+
+        if (!universitiesError && universities) {
+          universityData = universities.reduce((acc, uni) => {
+            acc[uni.id] = uni;
+            return acc;
+          }, {});
         }
-      });
+      }
 
-      console.log(`Found ${availablePrograms.length} available programs to analyze`);
+      // Merge the data
+      const availablePrograms = programs.map(program => ({
+        ...program,
+        university_profiles: universityData[program.university_id] || {
+          id: program.university_id,
+          name: 'University Name Not Available',
+          location: 'Location Not Available',
+          logo_url: null,
+          website: null
+        }
+      }));
 
-      // Prepare document analysis for intelligent matching
-      const uploadedDocs = documents.filter(doc => doc.status === 'uploaded');
-      
-      // Generate intelligent course suggestions based on documents and profile
-      await generateIntelligentSuggestions(availablePrograms, uploadedDocs, profile);
+      if (!availablePrograms || availablePrograms.length === 0) {
+        toast({
+          title: "No Programs Found",
+          description: "No published programs available in the database.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log(`📚 Found ${availablePrograms.length} programs in database`);
+
+      // 3. Generate intelligent course suggestions based on database data
+      await generateIntelligentSuggestions(availablePrograms, uploadedDocs, userProfile);
 
     } catch (error) {
-      console.error('Error generating course suggestions:', error);
+      console.error('Error generating AI course suggestions:', error);
       toast({
         title: "Error generating suggestions",
         description: "Failed to generate course suggestions. Please try again.",
@@ -1003,78 +1079,354 @@ export default function StudentDashboard() {
     }
   };
 
-  // Generate intelligent suggestions based on document analysis
+  // Generate intelligent suggestions based on desired degree and profile analysis
   const generateIntelligentSuggestions = async (availablePrograms, uploadedDocs, userProfile) => {
-    console.log('Analyzing student suitability for available courses...');
+    console.log('🎓 Starting AI-powered degree-based university recommendations...');
     
     // Simulate AI processing time
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Comprehensive student profile analysis
-    const studentProfile = analyzeStudentProfile(uploadedDocs, userProfile);
-    console.log('Student profile analysis:', studentProfile);
+    // Get user's desired degree and other key profile data
+    const desiredDegree = userProfile?.year_of_study; // This now contains desired degree level
+    const userGPA = userProfile?.gpa;
+    const specialization = userProfile?.specialization;
+    
+    console.log('🎯 User preferences:', {
+      desiredDegree,
+      userGPA, 
+      specialization,
+      documentsUploaded: uploadedDocs.length
+    });
 
-    // Evaluate student suitability for each course
-    const courseSuitabilityAnalysis = availablePrograms.map(program => {
-      const suitabilityAnalysis = evaluateStudentSuitability(program, studentProfile, userProfile);
+    // Step 1: Filter programs by degree level
+    const degreeMatchedPrograms = filterProgramsByDegreeLevel(availablePrograms, desiredDegree);
+    console.log(`📚 Found ${degreeMatchedPrograms.length} programs matching degree level: ${desiredDegree}`);
+
+    // Step 2: Comprehensive student profile analysis
+    const studentProfile = analyzeStudentProfile(uploadedDocs, userProfile);
+    console.log('👨‍🎓 Student profile analysis:', studentProfile);
+
+    // Step 3: AI-powered suitability analysis for degree-matched programs
+    const aiRecommendations = degreeMatchedPrograms.map(program => {
+      const suitabilityAnalysis = evaluateDegreeSuitability(program, studentProfile, userProfile);
       
       return {
-        id: program.id,
-        title: program.title,
-        university: program.university.name,
-        universityId: program.university.id,
-        location: program.university.location,
-        degreeLevel: program.degree_level,
-        duration: program.duration,
-        tuitionFee: program.tuition_fee,
-        description: program.description,
+        ...program,
         matchScore: suitabilityAnalysis.suitabilityScore,
         suitabilityLevel: suitabilityAnalysis.suitabilityLevel,
-        suitabilityReasons: suitabilityAnalysis.reasons,
-        strengths: suitabilityAnalysis.strengths,
+        matchReasons: suitabilityAnalysis.reasons,
+        studentStrengths: suitabilityAnalysis.strengths,
         improvementAreas: suitabilityAnalysis.improvementAreas,
-        applicationDeadline: program.application_deadline,
-        deliveryMode: program.delivery_mode,
-        hasScholarships: program.has_scholarships,
-        scholarshipAmount: program.scholarship_amount,
-        scholarshipPercentage: program.scholarship_percentage,
-        logo: program.university.logo_url,
-        additionalCriteria: program.additional_criteria,
-        specialRequirements: program.special_requirements
+        aiConfidence: calculateAIConfidence(suitabilityAnalysis, studentProfile),
+        degreeAlignment: calculateDegreeAlignment(program, desiredDegree, specialization),
+        gpaRequirementMet: checkGPARequirement(program, userGPA)
       };
     }).sort((a, b) => b.matchScore - a.matchScore);
 
-    // Categorize by student suitability level
-    const excellentFit = courseSuitabilityAnalysis.filter(c => c.matchScore >= 85);
-    const goodFit = courseSuitabilityAnalysis.filter(c => c.matchScore >= 70 && c.matchScore < 85);
-    const averageFit = courseSuitabilityAnalysis.filter(c => c.matchScore >= 50 && c.matchScore < 70);
-    const challengingFit = courseSuitabilityAnalysis.filter(c => c.matchScore >= 30 && c.matchScore < 50);
-    const stretchGoals = courseSuitabilityAnalysis.filter(c => c.matchScore < 30);
+    // Step 4: Categorize recommendations by suitability
+    const excellentMatches = aiRecommendations.filter(r => r.matchScore >= 85);
+    const goodMatches = aiRecommendations.filter(r => r.matchScore >= 70 && r.matchScore < 85);
+    const averageMatches = aiRecommendations.filter(r => r.matchScore >= 55 && r.matchScore < 70);
+    const challengingMatches = aiRecommendations.filter(r => r.matchScore >= 40 && r.matchScore < 55);
+    const stretchGoals = aiRecommendations.filter(r => r.matchScore < 40);
 
-    // Create balanced final recommendations
-    const finalSuggestions = [
-      ...excellentFit.slice(0, 4),        // Top excellent fits
-      ...goodFit.slice(0, 3),             // Good fits
-      ...averageFit.slice(0, 2),          // Average fits
-      ...challengingFit.slice(0, 2),      // Challenging but possible
-      ...stretchGoals.slice(0, 1)        // One stretch goal
+    // Step 5: Create balanced final recommendations (max 12 total)
+    const finalRecommendations = [
+      ...excellentMatches.slice(0, 4),    // Top 4 excellent matches
+      ...goodMatches.slice(0, 4),        // Top 4 good matches  
+      ...averageMatches.slice(0, 2),     // Top 2 average matches
+      ...challengingMatches.slice(0, 1), // 1 challenging option
+      ...stretchGoals.slice(0, 1)        // 1 stretch goal
     ];
 
-    console.log(`Student suitability analysis complete:`, {
-      excellent: excellentFit.length,
-      good: goodFit.length,
-      average: averageFit.length,
-      challenging: challengingFit.length,
+    console.log(`🎯 AI Recommendations Summary:`, {
+      totalAnalyzed: degreeMatchedPrograms.length,
+      excellent: excellentMatches.length,
+      good: goodMatches.length, 
+      average: averageMatches.length,
+      challenging: challengingMatches.length,
       stretch: stretchGoals.length,
-      totalAnalyzed: availablePrograms.length
+      finalSelected: finalRecommendations.length
     });
 
-    setAiCourseSuggestions(finalSuggestions);
+    // Step 6: Format recommendations for UI display with complete course information
+    const formattedRecommendations = finalRecommendations.map(program => ({
+      id: program.id,
+      title: program.title,
+      university: program.university_profiles?.name || 'Unknown University',
+      universityId: program.university_profiles?.id || program.university_id,
+      location: program.university_profiles?.location || 'Location not specified',
+      degreeLevel: program.degree_level || 'Not specified',
+      duration: program.duration || 'Duration not specified',
+      tuitionFee: program.tuition_fee || 'Fee information not available',
+      description: program.description || 'No description available',
+      matchScore: program.matchScore,
+      suitabilityLevel: program.suitabilityLevel,
+      suitabilityReasons: program.matchReasons || [],
+      strengths: program.studentStrengths || [],
+      improvementAreas: program.improvementAreas || [],
+      applicationDeadline: program.application_deadline,
+      deliveryMode: program.delivery_mode || 'Not specified',
+      hasScholarships: program.has_scholarships || false,
+      scholarshipAmount: program.scholarship_amount,
+      scholarshipPercentage: program.scholarship_percentage,
+      scholarshipType: program.scholarship_type,
+      logo: program.university_profiles?.logo_url,
+      website: program.university_profiles?.website,
+      specialRequirements: program.special_requirements,
+      additionalCriteria: program.additional_criteria,
+      aiConfidence: program.aiConfidence,
+      degreeAlignment: program.degreeAlignment,
+      gpaRequirementMet: program.gpaRequirementMet
+    }));
+
+    setAiCourseSuggestions(formattedRecommendations);
     
     toast({
-      title: "🎓 Student Suitability Analysis Complete!",
-      description: `Analyzed your fit for ${availablePrograms.length} courses. Found ${excellentFit.length} excellent fits, ${goodFit.length} good matches, ${averageFit.length} average fits.`
+      title: "🤖 AI Analysis Complete!",
+      description: `Found ${finalRecommendations.length} degree-matched recommendations. ${excellentMatches.length} excellent matches for ${formatDegreeDisplay(desiredDegree)}.`,
+      duration: 5000
     });
+  };
+
+  // Helper function: Filter programs by degree level
+  const filterProgramsByDegreeLevel = (programs, desiredDegree) => {
+    if (!desiredDegree) return programs;
+    
+    const degreeLevelMap = {
+      'bachelors': ['bachelor', 'undergraduate', 'bachelors', 'ba', 'bs', 'bsc'],
+      'masters': ['master', 'masters', 'graduate', 'ma', 'ms', 'msc', 'mba'],
+      'phd': ['phd', 'doctorate', 'doctoral', 'ph.d'],
+      'postdoc': ['postdoc', 'post-doctoral', 'research']
+    };
+    
+    const searchTerms = degreeLevelMap[desiredDegree] || [desiredDegree];
+    
+    return programs.filter(program => {
+      const degreeLevel = (program.degree_level || '').toLowerCase();
+      const title = (program.title || '').toLowerCase();
+      const description = (program.description || '').toLowerCase();
+      
+      return searchTerms.some(term => 
+        degreeLevel.includes(term) || 
+        title.includes(term) || 
+        description.includes(term)
+      );
+    });
+  };
+
+  // Helper function: Enhanced degree-based suitability evaluation
+  const evaluateDegreeSuitability = (program, studentProfile, userProfile) => {
+    let suitabilityScore = 15; // Base score
+    const reasons = [];
+    const strengths = [];
+    const improvementAreas = [];
+
+    // Degree Level Alignment (30 points max)
+    const desiredDegree = userProfile?.year_of_study;
+    const degreeAlignment = calculateDegreeAlignment(program, desiredDegree, userProfile?.specialization);
+    suitabilityScore += degreeAlignment.score;
+    reasons.push(...degreeAlignment.reasons);
+
+    // GPA Requirements (25 points max) 
+    const gpaCheck = checkGPARequirement(program, userProfile?.gpa);
+    suitabilityScore += gpaCheck.score;
+    if (gpaCheck.meets) {
+      strengths.push(gpaCheck.strength);
+    } else {
+      improvementAreas.push(gpaCheck.improvement);
+    }
+
+    // Specialization Match (20 points max)
+    const specializationMatch = calculateSpecializationMatch(program, userProfile?.specialization);
+    suitabilityScore += specializationMatch.score;
+    reasons.push(...specializationMatch.reasons);
+
+    // Document Readiness (15 points max)
+    const documentScore = Math.min(15, studentProfile.documentCompleteness * 0.15);
+    suitabilityScore += documentScore;
+    
+    if (studentProfile.hasEssentialDocs) {
+      strengths.push("Essential documents uploaded");
+    } else {
+      improvementAreas.push("Upload required documents");
+    }
+
+    // Financial Accessibility (10 points max)
+    if (program.has_scholarships) {
+      suitabilityScore += 5;
+      reasons.push("Scholarship opportunities available");
+    }
+    if (program.tuition_fee && program.tuition_fee.includes('$0') || program.tuition_fee?.includes('free')) {
+      suitabilityScore += 5;
+      reasons.push("Affordable tuition fees");
+    }
+
+    // Ensure realistic scoring (0-100)
+    suitabilityScore = Math.max(0, Math.min(100, Math.round(suitabilityScore)));
+
+    // Determine suitability level
+    let suitabilityLevel;
+    if (suitabilityScore >= 85) suitabilityLevel = "Excellent Fit";
+    else if (suitabilityScore >= 70) suitabilityLevel = "Good Fit"; 
+    else if (suitabilityScore >= 55) suitabilityLevel = "Average Fit";
+    else if (suitabilityScore >= 40) suitabilityLevel = "Challenging";
+    else suitabilityLevel = "Growth Opportunity";
+
+    return {
+      suitabilityScore,
+      suitabilityLevel,
+      reasons: reasons.slice(0, 4),
+      strengths: strengths.slice(0, 3),
+      improvementAreas: improvementAreas.slice(0, 2)
+    };
+  };
+
+  // Helper function: Calculate degree alignment
+  const calculateDegreeAlignment = (program, desiredDegree, specialization) => {
+    const reasons = [];
+    let score = 0;
+
+    // Perfect degree level match
+    const degreeLevel = (program.degree_level || '').toLowerCase();
+    const title = (program.title || '').toLowerCase();
+    
+    if (desiredDegree === 'bachelors' && (degreeLevel.includes('bachelor') || title.includes('bachelor'))) {
+      score += 25;
+      reasons.push("Perfect match for Bachelor's degree");
+    } else if (desiredDegree === 'masters' && (degreeLevel.includes('master') || title.includes('master'))) {
+      score += 25; 
+      reasons.push("Perfect match for Master's degree");
+    } else if (desiredDegree === 'phd' && (degreeLevel.includes('phd') || degreeLevel.includes('doctorate'))) {
+      score += 25;
+      reasons.push("Perfect match for PhD program");
+    } else if (desiredDegree === 'postdoc' && degreeLevel.includes('postdoc')) {
+      score += 25;
+      reasons.push("Perfect match for Post-doctoral position");
+    } else {
+      score += 5; // Partial credit for general alignment
+      reasons.push("General degree level consideration");
+    }
+
+    // Specialization alignment bonus
+    if (specialization && title.toLowerCase().includes(specialization.toLowerCase())) {
+      score += 5;
+      reasons.push(`Specialization match: ${specialization}`);
+    }
+
+    return { score, reasons };
+  };
+
+  // Helper function: Check GPA requirements
+  const checkGPARequirement = (program, userGPA) => {
+    if (!userGPA) {
+      return {
+        score: 10, // Neutral score
+        meets: null,
+        strength: "GPA information needed",
+        improvement: "Add GPA to profile for better matching"
+      };
+    }
+
+    const gpaFloat = parseFloat(userGPA);
+    let requiredGPA = 3.0; // Default assumption
+
+    // Estimate GPA requirements based on program level
+    const degreeLevel = (program.degree_level || '').toLowerCase();
+    if (degreeLevel.includes('phd') || degreeLevel.includes('doctorate')) {
+      requiredGPA = 3.5;
+    } else if (degreeLevel.includes('master')) {
+      requiredGPA = 3.2;
+    } else {
+      requiredGPA = 2.8;
+    }
+
+    if (gpaFloat >= requiredGPA + 0.5) {
+      return {
+        score: 25,
+        meets: true,
+        strength: `Strong GPA (${userGPA}) exceeds typical requirements`,
+        improvement: null
+      };
+    } else if (gpaFloat >= requiredGPA) {
+      return {
+        score: 20,
+        meets: true,
+        strength: `Good GPA (${userGPA}) meets requirements`,
+        improvement: null
+      };
+    } else if (gpaFloat >= requiredGPA - 0.3) {
+      return {
+        score: 10,
+        meets: false,
+        strength: null,
+        improvement: `GPA slightly below typical requirement (~${requiredGPA})`
+      };
+    } else {
+      return {
+        score: 5,
+        meets: false,
+        strength: null,
+        improvement: `Consider programs with lower GPA requirements`
+      };
+    }
+  };
+
+  // Helper function: Calculate specialization match
+  const calculateSpecializationMatch = (program, specialization) => {
+    if (!specialization) {
+      return { score: 10, reasons: ["General program consideration"] };
+    }
+
+    const title = (program.title || '').toLowerCase();
+    const description = (program.description || '').toLowerCase();
+    const spec = specialization.toLowerCase();
+
+    let score = 0;
+    const reasons = [];
+
+    if (title.includes(spec)) {
+      score += 20;
+      reasons.push(`Direct specialization match: ${specialization}`);
+    } else if (description.includes(spec)) {
+      score += 15;
+      reasons.push(`Specialization mentioned in program details`);
+    } else {
+      // Check for related fields
+      const relatedFields = {
+        'computer science': ['software', 'programming', 'data', 'ai', 'machine learning', 'technology'],
+        'business': ['management', 'finance', 'marketing', 'entrepreneurship', 'administration'],
+        'engineering': ['mechanical', 'electrical', 'civil', 'chemical', 'industrial'],
+        'medicine': ['health', 'medical', 'clinical', 'hospital', 'healthcare'],
+        'education': ['teaching', 'pedagogy', 'curriculum', 'learning', 'school']
+      };
+
+      const related = relatedFields[spec] || [];
+      const hasRelated = related.some(field => title.includes(field) || description.includes(field));
+      
+      if (hasRelated) {
+        score += 10;
+        reasons.push(`Related field to ${specialization}`);
+      } else {
+        score += 5;
+        reasons.push("Different but valuable field of study");
+      }
+    }
+
+    return { score, reasons };
+  };
+
+  // Helper function: Calculate AI confidence level
+  const calculateAIConfidence = (suitabilityAnalysis, studentProfile) => {
+    let confidence = 0.5; // Base confidence
+
+    // Higher confidence with more data
+    if (studentProfile.hasEssentialDocs) confidence += 0.2;
+    if (studentProfile.documentCompleteness > 70) confidence += 0.15;
+    if (studentProfile.gpaLevel !== 'unknown') confidence += 0.1;
+    if (studentProfile.academicBackground !== 'not specified') confidence += 0.05;
+
+    return Math.min(0.95, Math.max(0.3, confidence));
   };
 
   // Analyze comprehensive student profile
@@ -1126,14 +1478,23 @@ export default function StudentDashboard() {
       }
     }
 
-    // Analyze documents
-    const docTypes = documents.map(doc => doc.name.toLowerCase());
+    // Analyze documents based on actual database structure
+    const docTypes = documents.map(doc => (doc.document_type || '').toLowerCase());
+    const fileNames = documents.map(doc => (doc.file_name || '').toLowerCase());
+    const allDocInfo = [...docTypes, ...fileNames].filter(Boolean);
+    
     let completeness = 0;
     
-    // Essential documents
-    const hasTranscripts = docTypes.some(name => name.includes('transcript'));
-    const hasStatement = docTypes.some(name => name.includes('statement') || name.includes('essay'));
-    const hasLanguageTest = docTypes.some(name => name.includes('ielts') || name.includes('toefl'));
+    // Essential documents (check both document_type and file_name)
+    const hasTranscripts = allDocInfo.some(info => 
+      info.includes('transcript') || info.includes('academic') || info.includes('grades')
+    );
+    const hasStatement = allDocInfo.some(info => 
+      info.includes('statement') || info.includes('essay') || info.includes('personal') || info.includes('sop')
+    );
+    const hasLanguageTest = allDocInfo.some(info => 
+      info.includes('ielts') || info.includes('toefl') || info.includes('language') || info.includes('english')
+    );
     
     if (hasTranscripts) completeness += 30;
     if (hasStatement) {
@@ -1146,9 +1507,15 @@ export default function StudentDashboard() {
     }
     
     // Competitive documents
-    const hasRecommendations = docTypes.some(name => name.includes('recommendation') || name.includes('reference'));
-    const hasResume = docTypes.some(name => name.includes('resume') || name.includes('cv'));
-    const hasPortfolio = docTypes.some(name => name.includes('portfolio') || name.includes('work'));
+    const hasRecommendations = allDocInfo.some(info => 
+      info.includes('recommendation') || info.includes('reference') || info.includes('lor')
+    );
+    const hasResume = allDocInfo.some(info => 
+      info.includes('resume') || info.includes('cv') || info.includes('curriculum')
+    );
+    const hasPortfolio = allDocInfo.some(info => 
+      info.includes('portfolio') || info.includes('work') || info.includes('project')
+    );
     
     if (hasRecommendations) {
       completeness += 15;
@@ -2097,6 +2464,27 @@ export default function StudentDashboard() {
                                             <div className="flex justify-between">
                                               <span className="text-muted-foreground">Tuition:</span>
                                               <span className="font-medium">{course.tuitionFee}</span>
+                                            </div>
+                                          )}
+                                          {course.hasScholarships && (
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-muted-foreground">Scholarships:</span>
+                                              <div className="flex items-center gap-1">
+                                                <Badge variant="outline" className="text-xs bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200">
+                                                  Available
+                                                </Badge>
+                                                {course.scholarshipPercentage && (
+                                                  <span className="text-xs text-green-600 font-medium">
+                                                    {course.scholarshipPercentage}%
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {course.deliveryMode && (
+                                            <div className="flex justify-between">
+                                              <span className="text-muted-foreground">Mode:</span>
+                                              <span className="font-medium">{course.deliveryMode}</span>
                                             </div>
                                           )}
                                           {course.applicationDeadline && (
