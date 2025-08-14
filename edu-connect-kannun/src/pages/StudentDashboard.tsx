@@ -109,6 +109,7 @@ export default function StudentDashboard() {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [savedUniversities, setSavedUniversities] = useState(new Set());
+  const [savedPrograms, setSavedPrograms] = useState(new Set()); // Track saved program IDs
   const [applications, setApplications] = useState([]);
   const [universities, setUniversities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -235,6 +236,18 @@ export default function StudentDashboard() {
     setAppliedPrograms(appliedIds);
   }, [user]);
 
+  const loadSavedPrograms = useCallback(async () => {
+    if (!user) return;
+    // TODO: Enable when migration is applied and types are updated
+    // const { data } = await supabase
+    //   .from('student_saved_programs')
+    //   .select('program_id')
+    //   .eq('student_id', user.id);
+    
+    // const savedSet = new Set(data?.map(item => item.program_id) || []);
+    // setSavedPrograms(savedSet);
+  }, [user]);
+
   const loadUniversities = useCallback(async () => {
     const { data } = await supabase
       .from('university_profiles')
@@ -253,6 +266,7 @@ export default function StudentDashboard() {
         loadProfile(),
         loadDocuments(),
         loadSavedUniversities(),
+        loadSavedPrograms(),
         loadApplications(),
         loadUniversities()
       ]);
@@ -261,7 +275,7 @@ export default function StudentDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [loadProfile, loadDocuments, loadSavedUniversities, loadApplications, loadUniversities]);
+  }, [loadProfile, loadDocuments, loadSavedUniversities, loadSavedPrograms, loadApplications, loadUniversities]);
 
   // Load student data when component mounts
   useEffect(() => {
@@ -512,6 +526,54 @@ export default function StudentDashboard() {
             user_id: user.id,
             university_id: universityId
           });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const toggleSaveProgram = async (programId, universityId) => {
+    try {
+      if (savedPrograms.has(programId)) {
+        // TODO: Enable when migration is applied and types are updated
+        // await supabase
+        //   .from('student_saved_programs')
+        //   .delete()
+        //   .eq('student_id', user.id)
+        //   .eq('program_id', programId);
+        
+        // For now, just update local state
+        setSavedPrograms(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(programId);
+          return newSet;
+        });
+        
+        toast({
+          title: "Course removed from saved",
+          description: "Course has been removed from your saved list.",
+        });
+      } else {
+        // TODO: Enable when migration is applied and types are updated
+        // await supabase
+        //   .from('student_saved_programs')
+        //   .insert({
+        //     student_id: user.id,
+        //     program_id: programId,
+        //     university_id: universityId
+        //   });
+        
+        // For now, just update local state
+        setSavedPrograms(prev => new Set(prev).add(programId));
+        
+        toast({
+          title: "Course saved successfully!",
+          description: "Course has been added to your saved list.",
+        });
       }
     } catch (error) {
       toast({
@@ -2374,34 +2436,56 @@ export default function StudentDashboard() {
                   </TabsContent>
 
                   <TabsContent value="saved" className="space-y-4 mt-6">
-                    {savedUniversities.size > 0 ? (
+                    {savedPrograms.size > 0 ? (
                       <div className="space-y-4">
-                        {universities
-                          .filter(uni => savedUniversities.has(uni.id))
-                          .map((uni) => (
-                            <Card key={uni.id} className="hover:shadow-medium transition-all duration-300 border-border/50">
+                        {aiCourseSuggestions
+                          .filter(course => savedPrograms.has(course.id))
+                          .map((course) => (
+                            <Card key={course.id} className="hover:shadow-medium transition-all duration-300 border-border/50">
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-3">
                                     <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
-                                      {uni.logo_url ? (
-                                        <img src={uni.logo_url} alt={uni.name} className="w-6 h-6 rounded" />
+                                      {course.logo ? (
+                                        <img src={course.logo} alt={course.university} className="w-6 h-6 rounded" />
                                       ) : (
                                         <GraduationCap className="h-5 w-5 text-muted-foreground" />
                                       )}
                                     </div>
-                                    <div>
-                                      <h3 className="font-medium">{uni.name}</h3>
-                                      <p className="text-sm text-muted-foreground">{uni.location}</p>
+                                    <div className="flex-1">
+                                      <h3 className="font-medium">{course.title}</h3>
+                                      <p className="text-sm text-muted-foreground">{course.university}</p>
+                                      <p className="text-xs text-muted-foreground">{course.location}</p>
+                                      <div className="flex items-center gap-4 mt-1">
+                                        <Badge variant="secondary" className="text-xs">
+                                          {course.matchScore}% match
+                                        </Badge>
+                                        {course.degreeLevel && (
+                                          <span className="text-xs text-muted-foreground">{course.degreeLevel}</span>
+                                        )}
+                                        {course.duration && (
+                                          <span className="text-xs text-muted-foreground">{course.duration}</span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => toggleSave(uni.id)}
-                                  >
-                                    <BookmarkCheck className="h-4 w-4 text-accent" />
-                                  </Button>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleApply(course)}
+                                      disabled={appliedPrograms.has(course.id)}
+                                      className={appliedPrograms.has(course.id) ? 'bg-gray-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}
+                                    >
+                                      {appliedPrograms.has(course.id) ? 'Applied' : 'Apply'}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => toggleSaveProgram(course.id, course.universityId)}
+                                    >
+                                      <BookmarkCheck className="h-4 w-4 text-accent" />
+                                    </Button>
+                                  </div>
                                 </div>
                               </CardContent>
                             </Card>
@@ -2410,7 +2494,7 @@ export default function StudentDashboard() {
                     ) : (
                       <div className="text-center py-8 text-muted-foreground">
                         <Bookmark className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No saved universities yet. Start saving your favorites!</p>
+                        <p>No saved courses yet. Start saving your favorites!</p>
                       </div>
                     )}
                   </TabsContent>
@@ -2672,10 +2756,10 @@ export default function StudentDashboard() {
                                           <Button 
                                             size="sm" 
                                             variant="outline"
-                                            onClick={() => toggleSave(course.universityId)}
-                                            className={`${savedUniversities.has(course.universityId) ? 'bg-accent text-accent-foreground' : ''}`}
+                                            onClick={() => toggleSaveProgram(course.id, course.universityId)}
+                                            className={`${savedPrograms.has(course.id) ? 'bg-accent text-accent-foreground' : ''}`}
                                           >
-                                            {savedUniversities.has(course.universityId) ? (
+                                            {savedPrograms.has(course.id) ? (
                                               <BookmarkCheck className="h-4 w-4 text-accent" />
                                             ) : (
                                               <Bookmark className="h-4 w-4" />
@@ -2813,10 +2897,10 @@ export default function StudentDashboard() {
                                           <Button 
                                             size="sm" 
                                             variant="outline"
-                                            onClick={() => toggleSave(course.universityId)}
-                                            className={`${savedUniversities.has(course.universityId) ? 'bg-accent text-accent-foreground' : ''}`}
+                                            onClick={() => toggleSaveProgram(course.id, course.universityId)}
+                                            className={`${savedPrograms.has(course.id) ? 'bg-accent text-accent-foreground' : ''}`}
                                           >
-                                            {savedUniversities.has(course.universityId) ? (
+                                            {savedPrograms.has(course.id) ? (
                                               <BookmarkCheck className="h-4 w-4 text-accent" />
                                             ) : (
                                               <Bookmark className="h-4 w-4" />
@@ -2953,10 +3037,10 @@ export default function StudentDashboard() {
                                           <Button 
                                             size="sm" 
                                             variant="outline"
-                                            onClick={() => toggleSave(course.universityId)}
-                                            className={`${savedUniversities.has(course.universityId) ? 'bg-accent text-accent-foreground' : ''}`}
+                                            onClick={() => toggleSaveProgram(course.id, course.universityId)}
+                                            className={`${savedPrograms.has(course.id) ? 'bg-accent text-accent-foreground' : ''}`}
                                           >
-                                            {savedUniversities.has(course.universityId) ? (
+                                            {savedPrograms.has(course.id) ? (
                                               <BookmarkCheck className="h-4 w-4 text-accent" />
                                             ) : (
                                               <Bookmark className="h-4 w-4" />
