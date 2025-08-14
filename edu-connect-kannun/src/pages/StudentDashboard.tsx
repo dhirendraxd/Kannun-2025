@@ -922,6 +922,24 @@ export default function StudentDashboard() {
     }, 100);
   }, [loadProfile, toast]);
 
+  // Format degree display
+  const formatDegreeDisplay = (degree) => {
+    if (!degree) return "Not set";
+    const degreeMap = {
+      'bachelors': "Bachelor's Degree",
+      'masters': "Master's Degree", 
+      'phd': "PhD (Doctorate)",
+      'postdoc': "Post-Doctoral",
+      // Legacy mappings for old data
+      'freshman': "Bachelor's (1st year)",
+      'sophomore': "Bachelor's (2nd year)", 
+      'junior': "Bachelor's (3rd year)",
+      'senior': "Bachelor's (4th year)",
+      'graduate': "Graduate Level"
+    };
+    return degreeMap[degree] || degree.charAt(0).toUpperCase() + degree.slice(1);
+  };
+
   // Calculate profile completeness
   const calculateProfileCompleteness = () => {
     if (!profile) return 0;
@@ -1066,7 +1084,7 @@ export default function StudentDashboard() {
       academicStrength: 'average',
       gpaLevel: 'unknown',
       academicBackground: profile?.specialization || 'not specified',
-      currentLevel: profile?.year_of_study || 'not specified',
+      desiredDegreeLevel: profile?.year_of_study || 'not specified', // Now represents desired degree level
       
       // Document completeness and quality
       documentQuality: 'basic',
@@ -1583,8 +1601,10 @@ export default function StudentDashboard() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Year of Study:</span>
-                        <span>{profile.year_of_study || "Not set"}</span>
+                        <span className="text-muted-foreground">Desired Degree:</span>
+                        <span className="text-right max-w-[150px] truncate" title={formatDegreeDisplay(profile.year_of_study)}>
+                          {formatDegreeDisplay(profile.year_of_study)}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">GPA:</span>

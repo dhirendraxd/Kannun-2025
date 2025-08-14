@@ -32,7 +32,7 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
     position: "",
     website: "",
     specialization: "",
-    yearOfStudy: "",
+    desiredDegree: "",
     gpa: ""
   });
 
@@ -66,7 +66,7 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
             position: "",
             website: "",
             specialization: data.specialization || "",
-            yearOfStudy: data.year_of_study || "",
+            desiredDegree: data.year_of_study || "", // Map year_of_study to desiredDegree for backward compatibility
             gpa: data.gpa || ""
           };
           console.log('Setting form data:', newFormData);
@@ -81,7 +81,7 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
             country: "",
             bio: "",
             specialization: "",
-            yearOfStudy: "",
+            desiredDegree: "",
             gpa: "",
             email: user.email || ""
           }));
@@ -104,7 +104,7 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
             position: "",
             website: data.website || "",
             specialization: "",
-            yearOfStudy: "",
+            desiredDegree: "",
             gpa: ""
           });
         } else {
@@ -181,7 +181,7 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
           country: formData.country?.trim() || null,
           bio: formData.bio?.trim() || null,
           specialization: formData.specialization?.trim() || null,
-          year_of_study: formData.yearOfStudy || null,
+          year_of_study: formData.desiredDegree || null, // Map desiredDegree to year_of_study for database compatibility
           gpa: formData.gpa?.trim() || null
         };
         
@@ -432,18 +432,16 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="yearOfStudy">Year of Study</Label>
-                <Select value={formData.yearOfStudy} onValueChange={(value) => setFormData(prev => ({ ...prev, yearOfStudy: value }))}>
+                <Label htmlFor="desiredDegree">Want to Pursue Degree</Label>
+                <Select value={formData.desiredDegree} onValueChange={(value) => setFormData(prev => ({ ...prev, desiredDegree: value }))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select year" />
+                    <SelectValue placeholder="Select degree level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high-school">High School</SelectItem>
-                    <SelectItem value="freshman">Freshman</SelectItem>
-                    <SelectItem value="sophomore">Sophomore</SelectItem>
-                    <SelectItem value="junior">Junior</SelectItem>
-                    <SelectItem value="senior">Senior</SelectItem>
-                    <SelectItem value="graduate">Graduate</SelectItem>
+                    <SelectItem value="bachelors">Bachelor's Degree</SelectItem>
+                    <SelectItem value="masters">Master's Degree</SelectItem>
+                    <SelectItem value="phd">PhD (Doctorate)</SelectItem>
+                    <SelectItem value="postdoc">Post-Doctoral</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -474,15 +472,6 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
           </div>
 
           <div className="flex justify-end space-x-2">
-            {/* Debug button - remove in production */}
-            <Button type="button" variant="secondary" size="sm" onClick={() => {
-              console.log('=== FORM DATA DEBUG ===');
-              console.log('Current form data:', formData);
-              console.log('User:', user);
-              console.log('User ID:', user?.id);
-            }}>
-              Debug
-            </Button>
             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
