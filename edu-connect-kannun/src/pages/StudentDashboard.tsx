@@ -666,10 +666,10 @@ export default function StudentDashboard() {
   };
 
   const handleApply = async (universityIdOrCourse, programId = null) => {
+    // Handle both formats: handleApply(universityId, programId) and handleApply(courseObject)
+    let universityId, courseId, courseName;
+    
     try {
-      // Handle both formats: handleApply(universityId, programId) and handleApply(courseObject)
-      let universityId, courseId, courseName;
-      
       if (typeof universityIdOrCourse === 'object' && universityIdOrCourse !== null) {
         // Called with course object from AI recommendations
         const course = universityIdOrCourse;
@@ -704,7 +704,13 @@ export default function StudentDashboard() {
           description: "Please upload some documents before applying to universities.",
           variant: "destructive"
         });
+        setApplyingToProgram(null);
         return;
+      }
+
+      // Immediately update UI to show "Applied" state for better UX
+      if (courseId) {
+        setAppliedPrograms(prev => new Set(prev).add(courseId));
       }
 
       console.log(`📝 Applying to ${courseName || 'program'} with ${uploadedDocs.length} documents...`);
@@ -788,16 +794,21 @@ export default function StudentDashboard() {
         variant: "default"
       });
 
-      // Add to applied programs set
-      if (courseId) {
-        setAppliedPrograms(prev => new Set(prev).add(courseId));
-      }
-
-      // Reload applications to show the new one
+      // Reload applications to show the new one in the Applied tab
       loadApplications();
 
     } catch (error) {
       console.error('Application error:', error);
+      
+      // If there's an error, revert the applied state
+      if (courseId) {
+        setAppliedPrograms(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(courseId);
+          return newSet;
+        });
+      }
+      
       toast({
         title: "Application failed", 
         description: error.message || "An error occurred while submitting your application.",
@@ -2598,12 +2609,17 @@ export default function StudentDashboard() {
                                   </div>
                                   <div>
                                     <h3 className="font-medium">{app.university_profiles?.name}</h3>
-                                    {app.university_programs && (
-                                      <p className="text-sm text-muted-foreground">{app.university_programs.title}</p>
+                                    {app.program && (
+                                      <p className="text-sm text-muted-foreground">{app.program.title}</p>
                                     )}
                                     <p className="text-xs text-muted-foreground">
                                       Applied: {new Date(app.application_date).toLocaleDateString()}
                                     </p>
+                                    {app.program?.application_deadline && (
+                                      <p className="text-xs text-muted-foreground">
+                                        Deadline: {new Date(app.program.application_deadline).toLocaleDateString()}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                                 <Badge variant="outline" className="bg-success/10 text-success">
