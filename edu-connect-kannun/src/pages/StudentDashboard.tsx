@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -106,6 +107,7 @@ export default function StudentDashboard() {
   const { toast } = useToast();
   const [documents, setDocuments] = useState([]);
   const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [savedUniversities, setSavedUniversities] = useState(new Set());
   const [applications, setApplications] = useState([]);
   const [universities, setUniversities] = useState([]);
@@ -157,12 +159,27 @@ export default function StudentDashboard() {
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('student_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    setProfile(data);
+    try {
+      setProfileLoading(true);
+      console.log('Loading profile for user:', user.id);
+      const { data, error } = await supabase
+        .from('student_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error loading profile:', error);
+        return;
+      }
+      
+      console.log('Profile loaded:', data);
+      setProfile(data);
+    } catch (error) {
+      console.error('Exception loading profile:', error);
+    } finally {
+      setProfileLoading(false);
+    }
   }, [user]);
 
   const loadDocuments = useCallback(async () => {
@@ -248,7 +265,7 @@ export default function StudentDashboard() {
     }
   }, [user, testAIServiceAvailability, loadStudentData]);
 
-  // Real-time subscriptions for saved universities and applications
+  // Real-time subscriptions for saved universities, applications, and profile
   useEffect(() => {
     if (!user) return;
 
@@ -280,11 +297,26 @@ export default function StudentDashboard() {
       )
       .subscribe();
 
+    const profileChannel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'student_profiles',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => loadProfile()
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(savedChannel);
       supabase.removeChannel(applicationsChannel);
+      supabase.removeChannel(profileChannel);
     };
-  }, [user, loadSavedUniversities, loadApplications]);
+  }, [user, loadSavedUniversities, loadApplications, loadProfile]);
 
   const handleFileUpload = async (documentType, file) => {
     try {
@@ -874,6 +906,21 @@ export default function StudentDashboard() {
       };
     }
   };
+
+  // Enhanced profile update handler
+  const handleProfileUpdate = useCallback(async () => {
+    console.log('Profile update triggered, refreshing profile data...');
+    setProfileLoading(true);
+    // Add a small delay to ensure the database transaction is complete
+    setTimeout(async () => {
+      await loadProfile();
+      toast({
+        title: "Profile Updated",
+        description: "Your profile information has been refreshed.",
+        variant: "default"
+      });
+    }, 100);
+  }, [loadProfile, toast]);
 
   // Calculate profile completeness
   const calculateProfileCompleteness = () => {
@@ -1498,16 +1545,61 @@ export default function StudentDashboard() {
                       {profileCompleteness >= 80 ? "Complete" : "Incomplete"}
                     </Badge>
                   </div>
-                  {profile && (
+                  {profileLoading ? (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-4 w-36" />
+                      </div>
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-12" />
+                      </div>
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-4 w-28" />
+                      </div>
+                    </div>
+                  ) : profile ? (
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Name:</span>
-                        <span>{profile.full_name || "Not set"}</span>
+                        <span className="text-right max-w-[150px] truncate" title={profile.full_name || "Not set"}>
+                          {profile.full_name || "Not set"}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Specialization:</span>
-                        <span>{profile.specialization || "Not set"}</span>
+                        <span className="text-right max-w-[150px] truncate" title={profile.specialization || "Not set"}>
+                          {profile.specialization || "Not set"}
+                        </span>
                       </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Year of Study:</span>
+                        <span>{profile.year_of_study || "Not set"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">GPA:</span>
+                        <span>{profile.gpa || "Not set"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Country:</span>
+                        <span className="text-right max-w-[150px] truncate" title={profile.country || "Not set"}>
+                          {profile.country || "Not set"}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground text-center py-4">
+                      No profile information yet. Click "Edit Profile" to get started.
                     </div>
                   )}
                 </div>
@@ -1519,7 +1611,7 @@ export default function StudentDashboard() {
                     </Button>
                   }
                   userType="student"
-                  onProfileUpdate={loadProfile}
+                  onProfileUpdate={handleProfileUpdate}
                 />
               </CardContent>
             </Card>
