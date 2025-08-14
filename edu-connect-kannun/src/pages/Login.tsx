@@ -54,7 +54,7 @@ export default function Login() {
         toast({
           title: "Login Failed",
           description: error.message || "Invalid credentials. Please try again.",
-          variant: "destructive"
+          variant: "default"
         });
         setIsLoading(false);
       } else {
@@ -69,7 +69,7 @@ export default function Login() {
       toast({
         title: "Login Failed",
         description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
+        variant: "default"
       });
       setIsLoading(false);
     }

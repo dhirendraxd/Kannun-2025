@@ -27,7 +27,7 @@ export function CTASection() {
             to make international education dreams come true.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+          {/* <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button 
               size="lg" 
               className="group glass-button text-primary font-semibold hover:scale-105 shadow-lg rounded-2xl"
@@ -48,7 +48,7 @@ export function CTASection() {
               Join as University
               <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </Button>
-          </div>
+          </div> */}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
             <div className="glass-card-light p-6 rounded-2xl">

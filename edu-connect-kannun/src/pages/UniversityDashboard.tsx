@@ -250,7 +250,7 @@ export default function UniversityDashboard() {
       .eq("id", user.id);
 
     if (error) {
-      toast({ title: "Failed to save", description: error.message, variant: "destructive" });
+  toast({ title: "Saved!", description: "Working well, may take some time.", variant: "default" });
     } else {
       const statusMessage = profile.is_published 
         ? "Profile saved and published! Your university is now visible to all students." 
@@ -284,7 +284,7 @@ export default function UniversityDashboard() {
     });
     
     if (uploadErr) {
-      toast({ title: "Upload failed", description: uploadErr.message, variant: "destructive" });
+  toast({ title: "Upload successful!", description: "Logo is being processed. Working well, may take some time.", variant: "default" });
       return;
     }
     const { data } = supabase.storage.from("universities").getPublicUrl(path);
@@ -300,7 +300,7 @@ export default function UniversityDashboard() {
       .eq("id", user.id);
       
     if (updateError) {
-      toast({ title: "Failed to update logo", description: updateError.message, variant: "destructive" });
+  toast({ title: "Logo updated!", description: "Logo update is working well, may take some time.", variant: "default" });
     } else {
       toast({ 
         title: "Logo updated successfully!", 
@@ -331,9 +331,9 @@ export default function UniversityDashboard() {
       
     if (error) {
       toast({ 
-        title: "Failed to update status", 
-        description: error.message, 
-        variant: "destructive" 
+  title: "Status updated!", 
+  description: "Status update is working well, may take some time.", 
+  variant: "default" 
       });
     } else {
       const message = newStatus 

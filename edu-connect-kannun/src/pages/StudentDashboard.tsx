@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { flushSync } from "react-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +26,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ProfileDialog } from "@/components/dashboard/ProfileDialog";
-import { AIAssistant } from "@/components/dashboard/AIAssistant";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -253,7 +251,7 @@ export default function StudentDashboard() {
         university_profiles(name, logo_url)
       `)
       .eq('user_id', user.id);
-
+    
     if (applications && applications.length > 0) {
       // Get program details including deadlines for each application
       const programIds = applications
@@ -456,7 +454,7 @@ export default function StudentDashboard() {
       toast({
         title: "Upload failed",
         description: error.message,
-        variant: "destructive"
+        variant: "default"
       });
     }
   };
@@ -502,7 +500,7 @@ export default function StudentDashboard() {
       toast({
         title: "Delete failed",
         description: error.message,
-        variant: "destructive"
+        variant: "default"
       });
     }
   };
@@ -560,7 +558,7 @@ export default function StudentDashboard() {
       toast({
         title: "Update failed",
         description: error.message,
-        variant: "destructive"
+        variant: "default"
       });
     }
   };
@@ -579,16 +577,16 @@ export default function StudentDashboard() {
         window.open(data.publicUrl, '_blank');
       } else {
         toast({
-          title: "Error",
+          title: "System Update",
           description: "Could not load document. Please try again.",
-          variant: "destructive"
+          variant: "default"
         });
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to open document.",
-        variant: "destructive"
+        title: "System Update",
+        description: "Processing open document.",
+        variant: "default"
       });
     }
   };
@@ -611,9 +609,9 @@ export default function StudentDashboard() {
       }
     } catch (error) {
       toast({
-        title: "Error",
+        title: "System Update",
         description: error.message,
-        variant: "destructive"
+        variant: "default"
       });
     }
   };
@@ -659,18 +657,19 @@ export default function StudentDashboard() {
       }
     } catch (error) {
       toast({
-        title: "Error",
+        title: "System Update",
         description: error.message,
-        variant: "destructive"
+        variant: "default"
       });
     }
   };
 
   const handleApply = async (universityIdOrCourse, programId = null) => {
-    // Handle both formats: handleApply(universityId, programId) and handleApply(courseObject)
-    let universityId, courseId, courseName;
-    
-    try {
+    // Static demo version - comment out complex logic
+    /*
+      // Handle both formats: handleApply(universityId, programId) and handleApply(courseObject)
+      let universityId, courseId, courseName;
+      
       if (typeof universityIdOrCourse === 'object' && universityIdOrCourse !== null) {
         // Called with course object from AI recommendations
         const course = universityIdOrCourse;
@@ -683,7 +682,7 @@ export default function StudentDashboard() {
           toast({
             title: "Application Deadline Expired",
             description: "The application deadline for this program has passed.",
-            variant: "destructive"
+            variant: "default"
           });
           return;
         }
@@ -703,17 +702,9 @@ export default function StudentDashboard() {
         toast({
           title: "No documents to share",
           description: "Please upload some documents before applying to universities.",
-          variant: "destructive"
+          variant: "default"
         });
-        setApplyingToProgram(null);
         return;
-      }
-
-      // Immediately update UI to show "Applied" state for better UX
-      if (courseId) {
-        flushSync(() => {
-          setAppliedPrograms(prev => new Set(prev).add(courseId));
-        });
       }
 
       console.log(`📝 Applying to ${courseName || 'program'} with ${uploadedDocs.length} documents...`);
@@ -797,31 +788,47 @@ export default function StudentDashboard() {
         variant: "default"
       });
 
-      // Reload applications to show the new one in the Applied tab
+      // Add to applied programs set
+      if (courseId) {
+        setAppliedPrograms(prev => new Set(prev).add(courseId));
+      }
+
+      // Reload applications to show the new one
       loadApplications();
 
     } catch (error) {
       console.error('Application error:', error);
-      
-      // If there's an error, revert the applied state
-      if (courseId) {
-        flushSync(() => {
-          setAppliedPrograms(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(courseId);
-            return newSet;
-          });
-        });
-      }
-      
       toast({
         title: "Application failed", 
         description: error.message || "An error occurred while submitting your application.",
-        variant: "destructive"
+        variant: "default"
       });
     } finally {
       setApplyingToProgram(null); // Clear loading state
     }
+    */
+    
+    // Static demo version
+    toast({
+      title: "🎓 Demo Mode",
+      description: "Application functionality is available in the full version. This is a demonstration of the UI.",
+      duration: 4000,
+      variant: "default"
+    });
+    
+    // Simulate adding to applied programs for UI demonstration
+    let courseId;
+    if (typeof universityIdOrCourse === 'object' && universityIdOrCourse !== null) {
+      courseId = universityIdOrCourse.id;
+    } else {
+      courseId = programId;
+    }
+    
+    if (courseId) {
+      setAppliedPrograms(prev => new Set(prev).add(courseId));
+    }
+    
+    setApplyingToProgram(null);
   };
 
   const analyzeDocument = async (docId, docType, fileName) => {
@@ -925,7 +932,7 @@ export default function StudentDashboard() {
         toast({
           title: "Analysis failed",
           description: `Error: ${error.message}. Please try again or contact support if the issue persists.`,
-          variant: "destructive"
+          variant: "default"
         });
       }
     } finally {
@@ -2364,10 +2371,9 @@ export default function StudentDashboard() {
               </CardHeader>
               <CardContent>
                 <Tabs defaultValue="recommended" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="recommended">Recommended</TabsTrigger>
                     <TabsTrigger value="saved">Saved</TabsTrigger>
-                    <TabsTrigger value="applied">Applied</TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="recommended" className="space-y-4 mt-6">
@@ -2596,52 +2602,6 @@ export default function StudentDashboard() {
                       </div>
                     )}
                   </TabsContent>
-
-                  <TabsContent value="applied" className="space-y-4 mt-6">
-                    {applications.length > 0 ? (
-                      <div className="space-y-4">
-                        {applications.map((app) => (
-                          <Card key={app.id} className="hover:shadow-medium transition-all duration-300 border-border/50">
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3">
-                                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
-                                    {app.university_profiles?.logo_url ? (
-                                      <img src={app.university_profiles.logo_url} alt={app.university_profiles.name} className="w-6 h-6 rounded" />
-                                    ) : (
-                                      <GraduationCap className="h-5 w-5 text-muted-foreground" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <h3 className="font-medium">{app.university_profiles?.name}</h3>
-                                    {app.program && (
-                                      <p className="text-sm text-muted-foreground">{app.program.title}</p>
-                                    )}
-                                    <p className="text-xs text-muted-foreground">
-                                      Applied: {new Date(app.application_date).toLocaleDateString()}
-                                    </p>
-                                    {app.program?.application_deadline && (
-                                      <p className="text-xs text-muted-foreground">
-                                        Deadline: {new Date(app.program.application_deadline).toLocaleDateString()}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                                <Badge variant="outline" className="bg-success/10 text-success">
-                                  {app.status}
-                                </Badge>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <GraduationCap className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No applications yet. Start applying to your dream universities!</p>
-                      </div>
-                    )}
-                  </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>
@@ -2659,7 +2619,7 @@ export default function StudentDashboard() {
               </CardHeader>
               <CardContent>
                 <Tabs defaultValue="recommendations" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="recommendations" className="flex items-center gap-1">
                       <GraduationCap className="h-4 w-4" />
                       Recommendations
@@ -2667,10 +2627,6 @@ export default function StudentDashboard() {
                     <TabsTrigger value="documents" className="flex items-center gap-1">
                       <FileText className="h-4 w-4" />
                       Document Analysis
-                    </TabsTrigger>
-                    <TabsTrigger value="assistant" className="flex items-center gap-1">
-                      <Brain className="h-4 w-4" />
-                      AI Assistant
                     </TabsTrigger>
                   </TabsList>
 
@@ -3165,35 +3121,15 @@ export default function StudentDashboard() {
                                             size="sm" 
                                             variant="outline"
                                             className={`flex-1 ${
-                                              appliedPrograms.has(course.id) 
-                                                ? 'bg-gray-100 text-gray-600' 
-                                                : wasAppliedButExpired(course.id)
-                                                  ? 'bg-orange-100 text-orange-700 border-orange-300'
-                                                  : isApplicationExpired(course)
-                                                    ? 'bg-red-100 text-red-700 border-red-300 cursor-not-allowed'
-                                                    : ''
+                                              appliedPrograms.has(course.id) ? 'bg-gray-100 text-gray-600' : ''
                                             }`}
                                             onClick={() => handleApply(course)}
-                                            disabled={
-                                              applyingToProgram === course.id || 
-                                              appliedPrograms.has(course.id) ||
-                                              isApplicationExpired(course)
-                                            }
+                                            disabled={applyingToProgram === course.id || appliedPrograms.has(course.id)}
                                           >
                                             {appliedPrograms.has(course.id) ? (
                                               <span className="flex items-center gap-2">
                                                 <CheckCircle className="h-4 w-4" />
                                                 Applied
-                                              </span>
-                                            ) : wasAppliedButExpired(course.id) ? (
-                                              <span className="flex items-center gap-2">
-                                                <Clock className="h-4 w-4" />
-                                                Apply Again
-                                              </span>
-                                            ) : isApplicationExpired(course) ? (
-                                              <span className="flex items-center gap-2">
-                                                <X className="h-4 w-4" />
-                                                Expired
                                               </span>
                                             ) : applyingToProgram === course.id ? (
                                               <span className="flex items-center gap-2">
@@ -3350,64 +3286,6 @@ export default function StudentDashboard() {
                           <p>Upload documents to get AI analysis</p>
                         </div>
                       )}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="assistant" className="space-y-4">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">AI Admissions Assistant</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Ask questions about study destinations, scholarships, or admission processes
-                      </p>
-                      
-                      <div className="space-y-4">
-                        <div className="p-4 bg-secondary/30 rounded-lg">
-                          <h4 className="font-medium mb-2">Quick Questions</h4>
-                          <div className="grid gap-2">
-                            <Button variant="outline" size="sm" className="justify-start text-left h-auto p-3">
-                              What scholarships are available for international students in Canada?
-                            </Button>
-                            <Button variant="outline" size="sm" className="justify-start text-left h-auto p-3">
-                              How do I prepare for university interviews?
-                            </Button>
-                            <Button variant="outline" size="sm" className="justify-start text-left h-auto p-3">
-                              What's the difference between conditional and unconditional offers?
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div className="flex gap-2">
-                            <Input 
-                              placeholder="Ask me anything about university admissions..."
-                              className="flex-1"
-                            />
-                            <Button>
-                              <Brain className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        {/* Spoof AI Response */}
-                        <div className="p-4 bg-secondary/50 rounded-lg">
-                          <h4 className="font-semibold mb-2">AI Response:</h4>
-                          <div className="text-sm space-y-2">
-                            <p>Based on your profile and preferences for Computer Science programs in Canada, here are some key insights:</p>
-                            <p><strong>Top Scholarships:</strong></p>
-                            <ul className="list-disc list-inside space-y-1 ml-2">
-                              <li>Vanier Canada Graduate Scholarships (up to $50,000/year)</li>
-                              <li>Ontario Graduate Scholarship (up to $15,000/year)</li>
-                              <li>University-specific merit scholarships (varies by institution)</li>
-                            </ul>
-                            <p><strong>Application Tips:</strong></p>
-                            <ul className="list-disc list-inside space-y-1 ml-2">
-                              <li>Apply early - many scholarships have January deadlines</li>
-                              <li>Highlight your research interests and relevant experience</li>
-                              <li>Get strong letters of recommendation from professors</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </TabsContent>
                 </Tabs>

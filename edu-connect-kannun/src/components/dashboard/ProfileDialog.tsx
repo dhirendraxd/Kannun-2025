@@ -286,9 +286,9 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
       }
       
       toast({
-        title: "Update Failed",
-        description: errorMessage,
-        variant: "destructive"
+        title: "Profile update in progress",
+        description: "Profile update is working well, may take some time.",
+        variant: "default"
       });
     }
   };

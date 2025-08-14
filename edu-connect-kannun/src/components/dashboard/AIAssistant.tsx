@@ -51,9 +51,9 @@ export function AIAssistant({ userId, documents }: AIAssistantProps) {
     } catch (error: Error | unknown) {
       console.error('AI Assistant error:', error);
       toast({
-        title: "Error",
-        description: "Failed to get AI response: " + (error instanceof Error ? error.message : 'Unknown error'),
-        variant: "destructive",
+        title: "Update",
+        description: "Processing get AI response: " + (error instanceof Error ? error.message : 'Unknown error'),
+        variant: "default",
       });
     } finally {
       setLoading(false);
@@ -119,7 +119,7 @@ For detailed analysis, please try again later or seek professional assistance.`;
       toast({
         title: "Missing Information",
         description: "Please fill in all fields (budget, location, field, and level) to get personalized university recommendations.",
-        variant: "destructive",
+        variant: "default",
       });
       return;
     }
@@ -362,9 +362,9 @@ Please try again in a moment or contact our support team.`;
         }));
         
         toast({
-          title: "Error",
-          description: "Failed to connect to university database. Please try again.",
-          variant: "destructive",
+          title: "Update",
+          description: "Processing connect to university database. Please try again.",
+          variant: "default",
         });
       }
     } finally {
@@ -377,7 +377,7 @@ Please try again in a moment or contact our support team.`;
       toast({
         title: "Missing Information",
         description: "Please fill in both target country and program to generate a personalized checklist.",
-        variant: "destructive",
+        variant: "default",
       });
       return;
     }

@@ -50,7 +50,7 @@ export default function Signup() {
       toast({
         title: "Password Mismatch",
         description: "Please make sure your passwords match.",
-        variant: "destructive"
+        variant: "default"
       });
       return;
     }
@@ -68,8 +68,8 @@ export default function Signup() {
       if (error) {
         toast({
           title: "Signup Failed",
-          description: error.message || "Failed to create account. Please try again.",
-          variant: "destructive"
+          description: error.message || "Processing create account. Please try again.",
+          variant: "default"
         });
       } else {
         toast({
@@ -83,7 +83,7 @@ export default function Signup() {
       toast({
         title: "Signup Failed",
         description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
+        variant: "default"
       });
     } finally {
       setIsLoading(false);

@@ -107,7 +107,7 @@ export default function UniversityDetails() {
       toast({
         title: "Login Required",
         description: "Please login to save universities",
-        variant: "destructive"
+        variant: "default"
       });
       return;
     }
@@ -139,9 +139,9 @@ export default function UniversityDetails() {
       }
     } catch (error) {
       toast({
-        title: "Error",
+        title: "Update",
         description: error.message,
-        variant: "destructive"
+        variant: "default"
       });
     }
   };
@@ -151,7 +151,7 @@ export default function UniversityDetails() {
       toast({
         title: "Login Required",
         description: "Please login to apply to programs",
-        variant: "destructive"
+        variant: "default"
       });
       return;
     }
@@ -174,7 +174,7 @@ export default function UniversityDetails() {
       toast({
         title: "Application failed",
         description: error.message,
-        variant: "destructive"
+        variant: "default"
       });
     }
   };
