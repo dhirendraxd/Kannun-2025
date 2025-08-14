@@ -557,52 +557,124 @@ export default function StudentDashboard() {
       console.log(`📝 Applying to ${courseName || 'program'} with ${uploadedDocs.length} documents...`);
 
       // Create the application first
-      const { data: applicationData, error: applicationError } = await supabase
+      console.log('Creating application record...', {
+        user_id: user.id,
+        university_id: universityId,
+        program_id: courseId,
+        status: 'submitted'
+      });
+
+      // Check if application already exists
+      const { data: existingApplication } = await supabase
         .from('student_applications')
-        .insert({
-          user_id: user.id,
-          university_id: universityId,
-          program_id: courseId,
-          status: 'submitted'
-        })
-        .select('id')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('university_id', universityId)
+        .eq('program_id', courseId)
         .single();
 
-      if (applicationError) throw applicationError;
+      let applicationData;
+
+      if (existingApplication) {
+        console.log('Application already exists:', existingApplication);
+        applicationData = existingApplication;
+      } else {
+        // Create new application record
+        const { data: newApplication, error: applicationError } = await supabase
+          .from('student_applications')
+          .insert({
+            user_id: user.id,
+            university_id: universityId,
+            program_id: courseId,
+            status: 'submitted'
+          })
+          .select('id')
+          .single();
+
+        if (applicationError) {
+          console.error('Application creation error:', applicationError);
+          throw applicationError;
+        }
+
+        console.log('Application created successfully:', newApplication);
+        applicationData = newApplication;
+      }
+
+      console.log('Application created successfully:', applicationData);
 
       // Share all uploaded documents with the university
-      const documentsToShare = uploadedDocs.map(doc => ({
-        student_id: user.id,
-        university_id: universityId,
-        application_id: applicationData.id,
-        document_id: doc.id,
-        status: 'pending'
-      }));
+      console.log('Preparing documents to share:', uploadedDocs.map(doc => ({
+        id: doc.id,
+        document_type: doc.document_type,
+        file_name: doc.file_name,
+        status: doc.status
+      })));
 
-      const { error: shareError } = await supabase
+      // Check which documents are already shared for this application
+      const { data: existingSharedDocs } = await supabase
         .from('student_university_shared_documents')
-        .insert(documentsToShare);
+        .select('document_id')
+        .eq('student_id', user.id)
+        .eq('university_id', universityId)
+        .eq('application_id', applicationData.id);
 
-      if (shareError) {
-        console.error('Error sharing documents:', shareError);
-        // Don't fail the application, just log the error
-        toast({
-          title: "Application submitted",
-          description: `Your application and ${uploadedDocs.length} documents have been shared with the university. There was an issue sharing some documents - please contact support if needed.`,
-          variant: "default"
-        });
+      const alreadySharedDocIds = new Set(existingSharedDocs?.map(doc => doc.document_id) || []);
+
+      // Filter out documents that are already shared
+      const documentsToShare = uploadedDocs
+        .filter(doc => !alreadySharedDocIds.has(doc.id))
+        .map(doc => ({
+          student_id: user.id,
+          university_id: universityId,
+          application_id: applicationData.id,
+          document_id: doc.id,
+          status: 'pending'
+        }));
+
+      console.log('Documents to share payload:', documentsToShare);
+      console.log('Already shared documents:', Array.from(alreadySharedDocIds));
+
+      if (documentsToShare.length > 0) {
+        const { error: shareError } = await supabase
+          .from('student_university_shared_documents')
+          .insert(documentsToShare);
+
+        if (shareError) {
+          console.error('Document sharing error:', shareError);
+          console.error('Share error details:', {
+            message: shareError.message,
+            code: shareError.code,
+            details: shareError.details,
+            hint: shareError.hint
+          });
+          // Don't fail the application, just log the error
+          toast({
+            title: "Application submitted",
+            description: `Your application has been submitted. There was an issue sharing ${documentsToShare.length} documents - please contact support if needed.`,
+            variant: "destructive"
+          });
+        } else {
+          console.log('Documents shared successfully');
+          toast({
+            title: "🎉 Application submitted successfully!",
+            description: `Your application and ${documentsToShare.length} new documents have been shared with the university. They can now review your profile!`,
+            duration: 6000,
+            variant: "default"
+          });
+        }
       } else {
+        console.log('No new documents to share');
         toast({
           title: "🎉 Application submitted successfully!",
-          description: `Your application${courseName ? ` for ${courseName}` : ''} and ${uploadedDocs.length} documents have been shared with the university. They can now review your profile!`,
+          description: `Your application has been submitted. All documents were already shared with the university.`,
           duration: 6000,
           variant: "default"
         });
-        
-        // Add to applied programs set
-        if (courseId) {
-          setAppliedPrograms(prev => new Set(prev).add(courseId));
-        }
+      }
+
+      // Add to applied programs set
+      if (courseId) {
+        setAppliedPrograms(prev => new Set(prev).add(courseId));
       }
 
       // Reload applications to show the new one
