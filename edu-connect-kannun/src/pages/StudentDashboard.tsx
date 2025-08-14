@@ -1219,6 +1219,7 @@ export default function StudentDashboard() {
                     </Button>
                   }
                   userType="student"
+                  onProfileUpdate={loadProfile}
                 />
               </CardContent>
             </Card>

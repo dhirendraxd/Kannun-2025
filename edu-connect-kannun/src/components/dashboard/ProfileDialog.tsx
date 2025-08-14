@@ -35,14 +35,7 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
     gpa: ""
   });
 
-  // Load existing profile data when dialog opens
-  useEffect(() => {
-    if (isOpen && user) {
-      loadProfileData();
-    }
-  }, [isOpen, user]);
-
-  const loadProfileData = async () => {
+  const loadProfileData = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -105,7 +98,14 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
     } catch (error) {
       console.error('Error loading profile:', error);
     }
-  };
+  }, [user, userType]);
+
+  // Load existing profile data when dialog opens
+  useEffect(() => {
+    if (isOpen && user) {
+      loadProfileData();
+    }
+  }, [isOpen, user, loadProfileData]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({
@@ -153,8 +153,10 @@ export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDia
         description: "Your profile has been successfully updated.",
       });
       
-      // Refresh the page to show updated data
-      window.location.reload();
+      // Call the callback to refresh the parent component
+      if (onProfileUpdate) {
+        onProfileUpdate();
+      }
     } catch (error) {
       setIsLoading(false);
       toast({
