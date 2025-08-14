@@ -485,23 +485,69 @@ export default function StudentDashboard() {
 
   const handleApply = async (universityId, programId = null) => {
     try {
-      await supabase
+      // Check if student has uploaded documents
+      const uploadedDocs = documents.filter(doc => doc.status === 'uploaded' && doc.id);
+      
+      if (uploadedDocs.length === 0) {
+        toast({
+          title: "No documents to share",
+          description: "Please upload some documents before applying to universities.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Create the application first
+      const { data: applicationData, error: applicationError } = await supabase
         .from('student_applications')
         .insert({
           user_id: user.id,
           university_id: universityId,
           program_id: programId,
           status: 'submitted'
-        });
+        })
+        .select('id')
+        .single();
 
-      toast({
-        title: "Application submitted",
-        description: "Your application has been submitted successfully."
-      });
+      if (applicationError) throw applicationError;
+
+      // Share all uploaded documents with the university
+      const documentsToShare = uploadedDocs.map(doc => ({
+        student_id: user.id,
+        university_id: universityId,
+        application_id: applicationData.id,
+        document_id: doc.id,
+        status: 'pending'
+      }));
+
+      const { error: shareError } = await supabase
+        .from('student_university_shared_documents')
+        .insert(documentsToShare);
+
+      if (shareError) {
+        console.error('Error sharing documents:', shareError);
+        // Don't fail the application, just log the error
+        toast({
+          title: "Application submitted",
+          description: "Your application has been submitted, but there was an issue sharing some documents. Please contact support if needed.",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Application submitted successfully!",
+          description: `Your application and ${uploadedDocs.length} documents have been shared with the university.`,
+          variant: "default"
+        });
+      }
+
+      // Reload applications to show the new one
+      loadApplications();
+
     } catch (error) {
+      console.error('Application error:', error);
       toast({
         title: "Application failed", 
-        description: error.message,
+        description: error.message || "An error occurred while submitting your application.",
         variant: "destructive"
       });
     }
@@ -970,18 +1016,18 @@ export default function StudentDashboard() {
     const hasIELTS = uploadedDocs.some(doc => doc.name === 'IELTS Score');
     const hasTranscripts = uploadedDocs.some(doc => doc.name === 'Academic Transcripts');
 
-    // Take top programs and add match scores
-    suggestions = relevantPrograms.slice(0, 6).map((program, index) => {
-      let matchScore = 70 + (Math.random() * 25); // Base score 70-95%
+    // Create different tiers of programs with different match ranges
+    const createProgramSuggestion = (program, baseScore, index) => {
+      let matchScore = baseScore;
       
       // Boost score based on document completeness
-      if (hasPersonalStatement) matchScore += 5;
-      if (hasIELTS) matchScore += 5;
-      if (hasTranscripts) matchScore += 5;
+      if (hasPersonalStatement) matchScore += 3;
+      if (hasIELTS) matchScore += 3;
+      if (hasTranscripts) matchScore += 3;
       
       // Boost score based on profile completeness
-      if (profile?.gpa) matchScore += 3;
-      if (profile?.specialization) matchScore += 5;
+      if (profile?.gpa) matchScore += 2;
+      if (profile?.specialization) matchScore += 3;
       
       return {
         id: program.id,
@@ -994,13 +1040,47 @@ export default function StudentDashboard() {
         tuitionFee: program.tuition_fee,
         description: program.description,
         matchScore: Math.min(Math.round(matchScore), 98),
-        matchReasons: generateMatchReasons(program, profile, uploadedDocs),
+        matchReasons: generateMatchReasons(program, profile, uploadedDocs, matchScore),
         applicationDeadline: program.application_deadline,
         deliveryMode: program.delivery_mode,
         hasScholarships: program.has_scholarships,
         logo: program.university.logo_url
       };
-    }).sort((a, b) => b.matchScore - a.matchScore);
+    };
+
+    // High Match (80-98%): Top relevant programs
+    const highMatchPrograms = relevantPrograms.slice(0, 3).map((program, index) => 
+      createProgramSuggestion(program, 80 + (Math.random() * 18), index)
+    );
+
+    // Medium Match (40-60%): Broader programs that might be relevant
+    const mediumMatchPrograms = relevantPrograms.slice(3, 6).map((program, index) => 
+      createProgramSuggestion(program, 40 + (Math.random() * 20), index)
+    );
+
+    // Also include some programs from different fields for medium matches
+    const otherFieldPrograms = availablePrograms
+      .filter(program => !relevantPrograms.includes(program))
+      .slice(0, 2)
+      .map((program, index) => 
+        createProgramSuggestion(program, 35 + (Math.random() * 25), index)
+      );
+
+    // Low Match (15-35%): Different field programs for exploration
+    const lowMatchPrograms = availablePrograms
+      .filter(program => !relevantPrograms.includes(program))
+      .slice(2, 5)
+      .map((program, index) => 
+        createProgramSuggestion(program, 15 + (Math.random() * 20), index)
+      );
+
+    // Combine all suggestions and sort by match score
+    suggestions = [
+      ...highMatchPrograms,
+      ...mediumMatchPrograms,
+      ...otherFieldPrograms,
+      ...lowMatchPrograms
+    ].sort((a, b) => b.matchScore - a.matchScore);
 
     setAiCourseSuggestions(suggestions);
     toast({
@@ -1010,28 +1090,72 @@ export default function StudentDashboard() {
   };
 
   // Generate match reasons based on profile and documents
-  const generateMatchReasons = (program, userProfile, docs) => {
+  const generateMatchReasons = (program, userProfile, docs, matchScore = 80) => {
     const reasons = [];
     
-    if (userProfile?.specialization) {
-      const spec = userProfile.specialization.toLowerCase();
-      const title = program.title.toLowerCase();
+    // High match reasons (80%+)
+    if (matchScore >= 80) {
+      if (userProfile?.specialization) {
+        const spec = userProfile.specialization.toLowerCase();
+        const title = program.title.toLowerCase();
+        
+        if ((spec.includes('computer') && title.includes('computer')) ||
+            (spec.includes('business') && title.includes('business')) ||
+            (spec.includes('engineering') && title.includes('engineering'))) {
+          reasons.push('Perfect match with your specialization');
+        }
+      }
       
-      if ((spec.includes('computer') && title.includes('computer')) ||
-          (spec.includes('business') && title.includes('business')) ||
-          (spec.includes('engineering') && title.includes('engineering'))) {
-        reasons.push('Matches your specialization');
+      if (userProfile?.gpa && userProfile.gpa >= 3.5) {
+        reasons.push('Your academic performance meets admission requirements');
+      }
+      
+      if (docs.length >= 4) {
+        reasons.push('Complete document portfolio shows strong preparation');
       }
     }
     
-    if (userProfile?.gpa) {
-      reasons.push('Academic performance aligns well');
+    // Medium match reasons (40-79%)
+    else if (matchScore >= 40) {
+      if (userProfile?.specialization) {
+        const spec = userProfile.specialization.toLowerCase();
+        const title = program.title.toLowerCase();
+        
+        if ((spec.includes('computer') && (title.includes('technology') || title.includes('data'))) ||
+            (spec.includes('business') && (title.includes('management') || title.includes('economics'))) ||
+            (spec.includes('engineering') && title.includes('technical'))) {
+          reasons.push('Related to your field of study');
+        }
+      }
+      
+      if (userProfile?.gpa) {
+        reasons.push('Academic background shows potential');
+      }
+      
+      if (docs.length >= 2) {
+        reasons.push('Good foundation with uploaded documents');
+      }
+      
+      reasons.push('Could expand your career opportunities');
     }
     
-    if (docs.length >= 4) {
-      reasons.push('Strong document portfolio');
+    // Low match reasons (15-39%)
+    else {
+      reasons.push('Alternative career path to consider');
+      
+      if (program.has_scholarships) {
+        reasons.push('Financial aid opportunities available');
+      }
+      
+      if (program.delivery_mode === 'Online' || program.delivery_mode === 'Hybrid') {
+        reasons.push('Flexible learning format');
+      }
+      
+      reasons.push('Opportunity to explore new fields');
+      reasons.push('Could provide valuable transferable skills');
     }
     
+    // Common reasons for all levels
     if (program.has_scholarships) {
       reasons.push('Scholarship opportunities available');
     }
@@ -1508,108 +1632,298 @@ export default function StudentDashboard() {
                       </div>
                       
                       {aiCourseSuggestions.length > 0 ? (
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {aiCourseSuggestions.map((course) => (
-                            <Card key={course.id} className="hover:shadow-large transition-all duration-300 border-border/50 bg-card/80 backdrop-blur-sm">
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                                      {course.logo ? (
-                                        <img src={course.logo} alt={course.university} className="w-8 h-8 rounded" />
-                                      ) : (
-                                        <GraduationCap className="h-6 w-6 text-primary" />
-                                      )}
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium">{course.title}</h4>
-                                      <p className="text-sm text-muted-foreground">{course.university}</p>
-                                      <p className="text-xs text-muted-foreground">{course.location}</p>
-                                    </div>
-                                  </div>
-                                  <Badge variant="secondary" className="bg-primary/20 text-primary">
-                                    {course.matchScore}% match
-                                  </Badge>
-                                </div>
-                                
-                                <div className="space-y-2 text-sm mb-3">
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Degree Level:</span>
-                                    <span className="font-medium">{course.degreeLevel || 'Not specified'}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Duration:</span>
-                                    <span className="font-medium">{course.duration || 'Not specified'}</span>
-                                  </div>
-                                  {course.tuitionFee && (
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Tuition:</span>
-                                      <span className="font-medium">{course.tuitionFee}</span>
-                                    </div>
-                                  )}
-                                  {course.applicationDeadline && (
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Deadline:</span>
-                                      <span className="font-medium text-orange-600">{new Date(course.applicationDeadline).toLocaleDateString()}</span>
-                                    </div>
-                                  )}
-                                </div>
+                        <div className="space-y-6">
+                          {/* High Match Courses (80%+) */}
+                          {aiCourseSuggestions.filter(course => course.matchScore >= 80).length > 0 && (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <h4 className="font-semibold text-green-700 dark:text-green-400">
+                                  Excellent Matches (80%+ match)
+                                </h4>
+                                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                  {aiCourseSuggestions.filter(course => course.matchScore >= 80).length} courses
+                                </Badge>
+                              </div>
+                              <div className="grid gap-4 md:grid-cols-2">
+                                {aiCourseSuggestions
+                                  .filter(course => course.matchScore >= 80)
+                                  .map((course) => (
+                                    <Card key={course.id} className="hover:shadow-large transition-all duration-300 border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20">
+                                      <CardContent className="p-4">
+                                        <div className="flex items-start justify-between mb-3">
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                                              {course.logo ? (
+                                                <img src={course.logo} alt={course.university} className="w-8 h-8 rounded" />
+                                              ) : (
+                                                <GraduationCap className="h-6 w-6 text-green-600" />
+                                              )}
+                                            </div>
+                                            <div>
+                                              <h4 className="font-medium">{course.title}</h4>
+                                              <p className="text-sm text-muted-foreground">{course.university}</p>
+                                              <p className="text-xs text-muted-foreground">{course.location}</p>
+                                            </div>
+                                          </div>
+                                          <Badge variant="secondary" className="bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                            {course.matchScore}% match
+                                          </Badge>
+                                        </div>
+                                        
+                                        <div className="space-y-2 text-sm mb-3">
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Degree Level:</span>
+                                            <span className="font-medium">{course.degreeLevel || 'Not specified'}</span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Duration:</span>
+                                            <span className="font-medium">{course.duration || 'Not specified'}</span>
+                                          </div>
+                                          {course.tuitionFee && (
+                                            <div className="flex justify-between">
+                                              <span className="text-muted-foreground">Tuition:</span>
+                                              <span className="font-medium">{course.tuitionFee}</span>
+                                            </div>
+                                          )}
+                                          {course.applicationDeadline && (
+                                            <div className="flex justify-between">
+                                              <span className="text-muted-foreground">Deadline:</span>
+                                              <span className="font-medium text-orange-600">{new Date(course.applicationDeadline).toLocaleDateString()}</span>
+                                            </div>
+                                          )}
+                                        </div>
 
-                                {course.description && (
-                                  <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{course.description}</p>
-                                )}
+                                        <div className="space-y-2 mb-3">
+                                          <p className="text-xs font-medium text-green-700 dark:text-green-400">Why this is a great match:</p>
+                                          <ul className="text-xs space-y-1">
+                                            {course.matchReasons?.slice(0, 2).map((reason, idx) => (
+                                              <li key={idx} className="flex items-center gap-1">
+                                                <CheckCircle className="h-3 w-3 text-green-500" />
+                                                {reason}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
 
-                                {course.matchReasons && course.matchReasons.length > 0 && (
-                                  <div className="mb-3">
-                                    <p className="text-xs font-medium text-primary mb-1">Why this matches:</p>
-                                    <ul className="text-xs text-muted-foreground space-y-1">
-                                      {course.matchReasons.slice(0, 2).map((reason, index) => (
-                                        <li key={index} className="flex items-center gap-1">
-                                          <CheckCircle className="h-3 w-3 text-primary" />
-                                          {reason}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
+                                        <div className="flex gap-2">
+                                          <Button 
+                                            size="sm" 
+                                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                            onClick={() => handleApply(course)}
+                                          >
+                                            Apply Now
+                                          </Button>
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            onClick={() => toggleSave(course.universityId)}
+                                            className={`${savedUniversities.has(course.universityId) ? 'bg-accent text-accent-foreground' : ''}`}
+                                          >
+                                            {savedUniversities.has(course.universityId) ? (
+                                              <BookmarkCheck className="h-4 w-4 text-accent" />
+                                            ) : (
+                                              <Bookmark className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
 
-                                <div className="flex gap-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="flex-1"
-                                    onClick={() => {
-                                      // View more details about the university
-                                      const uni = universities.find(u => u.id === course.universityId);
-                                      if (uni?.website) {
-                                        window.open(uni.website, '_blank');
-                                      }
-                                    }}
-                                  >
-                                    View Details
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    className="flex-1"
-                                    onClick={() => handleApply(course.universityId, course.id)}
-                                  >
-                                    Apply Now
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => toggleSave(course.universityId)}
-                                  >
-                                    {savedUniversities.has(course.universityId) ? (
-                                      <BookmarkCheck className="h-4 w-4 text-accent" />
-                                    ) : (
-                                      <Bookmark className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
+                          {/* Medium Match Courses (40-79%) */}
+                          {aiCourseSuggestions.filter(course => course.matchScore >= 40 && course.matchScore < 80).length > 0 && (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                                <h4 className="font-semibold text-amber-700 dark:text-amber-400">
+                                  Good Matches (40-79% match)
+                                </h4>
+                                <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                  {aiCourseSuggestions.filter(course => course.matchScore >= 40 && course.matchScore < 80).length} courses
+                                </Badge>
+                              </div>
+                              <div className="grid gap-4 md:grid-cols-2">
+                                {aiCourseSuggestions
+                                  .filter(course => course.matchScore >= 40 && course.matchScore < 80)
+                                  .map((course) => (
+                                    <Card key={course.id} className="hover:shadow-large transition-all duration-300 border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
+                                      <CardContent className="p-4">
+                                        <div className="flex items-start justify-between mb-3">
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-lg flex items-center justify-center">
+                                              {course.logo ? (
+                                                <img src={course.logo} alt={course.university} className="w-8 h-8 rounded" />
+                                              ) : (
+                                                <GraduationCap className="h-6 w-6 text-amber-600" />
+                                              )}
+                                            </div>
+                                            <div>
+                                              <h4 className="font-medium">{course.title}</h4>
+                                              <p className="text-sm text-muted-foreground">{course.university}</p>
+                                              <p className="text-xs text-muted-foreground">{course.location}</p>
+                                            </div>
+                                          </div>
+                                          <Badge variant="secondary" className="bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                            {course.matchScore}% match
+                                          </Badge>
+                                        </div>
+                                        
+                                        <div className="space-y-2 text-sm mb-3">
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Degree Level:</span>
+                                            <span className="font-medium">{course.degreeLevel || 'Not specified'}</span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Duration:</span>
+                                            <span className="font-medium">{course.duration || 'Not specified'}</span>
+                                          </div>
+                                          {course.tuitionFee && (
+                                            <div className="flex justify-between">
+                                              <span className="text-muted-foreground">Tuition:</span>
+                                              <span className="font-medium">{course.tuitionFee}</span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div className="space-y-2 mb-3">
+                                          <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Why consider this option:</p>
+                                          <ul className="text-xs space-y-1">
+                                            {course.matchReasons?.slice(0, 2).map((reason, idx) => (
+                                              <li key={idx} className="flex items-center gap-1">
+                                                <div className="h-2 w-2 bg-amber-500 rounded-full" />
+                                                {reason}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            className="flex-1"
+                                            onClick={() => handleApply(course)}
+                                          >
+                                            Apply
+                                          </Button>
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            onClick={() => toggleSave(course.universityId)}
+                                            className={`${savedUniversities.has(course.universityId) ? 'bg-accent text-accent-foreground' : ''}`}
+                                          >
+                                            {savedUniversities.has(course.universityId) ? (
+                                              <BookmarkCheck className="h-4 w-4 text-accent" />
+                                            ) : (
+                                              <Bookmark className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Low Match Courses (15-39%) */}
+                          {aiCourseSuggestions.filter(course => course.matchScore < 40).length > 0 && (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                <h4 className="font-semibold text-blue-700 dark:text-blue-400">
+                                  Alternative Options (15-39% match)
+                                </h4>
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                  {aiCourseSuggestions.filter(course => course.matchScore < 40).length} courses
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                Explore these programs to broaden your horizons or discover new career paths.
+                              </p>
+                              <div className="grid gap-4 md:grid-cols-2">
+                                {aiCourseSuggestions
+                                  .filter(course => course.matchScore < 40)
+                                  .map((course) => (
+                                    <Card key={course.id} className="hover:shadow-large transition-all duration-300 border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+                                      <CardContent className="p-4">
+                                        <div className="flex items-start justify-between mb-3">
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                                              {course.logo ? (
+                                                <img src={course.logo} alt={course.university} className="w-8 h-8 rounded" />
+                                              ) : (
+                                                <GraduationCap className="h-6 w-6 text-blue-600" />
+                                              )}
+                                            </div>
+                                            <div>
+                                              <h4 className="font-medium">{course.title}</h4>
+                                              <p className="text-sm text-muted-foreground">{course.university}</p>
+                                              <p className="text-xs text-muted-foreground">{course.location}</p>
+                                            </div>
+                                          </div>
+                                          <Badge variant="secondary" className="bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                            {course.matchScore}% match
+                                          </Badge>
+                                        </div>
+                                        
+                                        <div className="space-y-2 text-sm mb-3">
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Degree Level:</span>
+                                            <span className="font-medium">{course.degreeLevel || 'Not specified'}</span>
+                                          </div>
+                                          {course.tuitionFee && (
+                                            <div className="flex justify-between">
+                                              <span className="text-muted-foreground">Tuition:</span>
+                                              <span className="font-medium">{course.tuitionFee}</span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div className="space-y-2 mb-3">
+                                          <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Potential benefits:</p>
+                                          <ul className="text-xs space-y-1">
+                                            {course.matchReasons?.slice(0, 2).map((reason, idx) => (
+                                              <li key={idx} className="flex items-center gap-1">
+                                                <div className="h-2 w-2 bg-blue-500 rounded-full" />
+                                                {reason}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            className="flex-1"
+                                            onClick={() => handleApply(course)}
+                                          >
+                                            Learn More
+                                          </Button>
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            onClick={() => toggleSave(course.universityId)}
+                                            className={`${savedUniversities.has(course.universityId) ? 'bg-accent text-accent-foreground' : ''}`}
+                                          >
+                                            {savedUniversities.has(course.universityId) ? (
+                                              <BookmarkCheck className="h-4 w-4 text-accent" />
+                                            ) : (
+                                              <Bookmark className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="text-center py-12 bg-secondary/10 rounded-lg border border-border/50">
@@ -1641,7 +1955,7 @@ export default function StudentDashboard() {
                             <p>• Recommendations are based on {documents.filter(doc => doc.status === 'uploaded').length} uploaded documents and your profile</p>
                             <p>• Match scores consider your academic background, specialization, and document quality</p>
                             <p>• All suggested programs are from verified universities in our database</p>
-                            <p>• Consider applying to a mix of reach, target, and safety programs for best results</p>
+                            <p>• Consider applying to a mix of high match (80%+), good match (40-79%), and alternative (15-39%) programs</p>
                           </div>
                         </div>
                       )}

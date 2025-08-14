@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,10 @@ import { Edit, User, Building2, Globe, Mail, Phone, MapPin } from "lucide-react"
 interface ProfileDialogProps {
   trigger: React.ReactNode;
   userType: 'student' | 'university';
+  onProfileUpdate?: () => void; // Callback to refresh parent component
 }
 
-export function ProfileDialog({ trigger, userType }: ProfileDialogProps) {
+export function ProfileDialog({ trigger, userType, onProfileUpdate }: ProfileDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);

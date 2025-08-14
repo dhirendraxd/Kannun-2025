@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { ProfileDialog } from "@/components/dashboard/ProfileDialog";
+import SharedDocumentsView from "@/components/university/SharedDocumentsView";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -676,6 +677,7 @@ export default function UniversityDashboard() {
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="profile">Institution Profile</TabsTrigger>
             <TabsTrigger value="programs">Programs</TabsTrigger>
+            <TabsTrigger value="documents">Student Documents</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -2033,6 +2035,10 @@ export default function UniversityDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-4">
+            {profile?.id && <SharedDocumentsView universityId={profile.id} />}
           </TabsContent>
         </Tabs>
       </div>
