@@ -118,6 +118,8 @@ export default function StudentDashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [aiCourseSuggestions, setAiCourseSuggestions] = useState([]);
   const [generatingCourseSuggestions, setGeneratingCourseSuggestions] = useState(false);
+  const [applyingToProgram, setApplyingToProgram] = useState(null); // Track which program is being applied to
+  const [appliedPrograms, setAppliedPrograms] = useState(new Set()); // Track applied program IDs
 
   const [filters, setFilters] = useState({
     country: "",
@@ -225,7 +227,12 @@ export default function StudentDashboard() {
         university_programs(title)
       `)
       .eq('user_id', user.id);
+    
     setApplications(data || []);
+    
+    // Track applied program IDs for UI state
+    const appliedIds = new Set((data || []).map(app => app.program_id).filter(Boolean));
+    setAppliedPrograms(appliedIds);
   }, [user]);
 
   const loadUniversities = useCallback(async () => {
@@ -515,8 +522,26 @@ export default function StudentDashboard() {
     }
   };
 
-  const handleApply = async (universityId, programId = null) => {
+  const handleApply = async (universityIdOrCourse, programId = null) => {
     try {
+      // Handle both formats: handleApply(universityId, programId) and handleApply(courseObject)
+      let universityId, courseId, courseName;
+      
+      if (typeof universityIdOrCourse === 'object' && universityIdOrCourse !== null) {
+        // Called with course object from AI recommendations
+        const course = universityIdOrCourse;
+        universityId = course.universityId;
+        courseId = course.id;
+        courseName = course.title;
+      } else {
+        // Called with separate parameters (legacy format)
+        universityId = universityIdOrCourse;
+        courseId = programId;
+      }
+
+      // Set loading state
+      setApplyingToProgram(courseId || universityId);
+
       // Check if student has uploaded documents
       const uploadedDocs = documents.filter(doc => doc.status === 'uploaded' && doc.id);
       
@@ -529,13 +554,15 @@ export default function StudentDashboard() {
         return;
       }
 
+      console.log(`📝 Applying to ${courseName || 'program'} with ${uploadedDocs.length} documents...`);
+
       // Create the application first
       const { data: applicationData, error: applicationError } = await supabase
         .from('student_applications')
         .insert({
           user_id: user.id,
           university_id: universityId,
-          program_id: programId,
+          program_id: courseId,
           status: 'submitted'
         })
         .select('id')
@@ -561,15 +588,21 @@ export default function StudentDashboard() {
         // Don't fail the application, just log the error
         toast({
           title: "Application submitted",
-          description: "Your application has been submitted, but there was an issue sharing some documents. Please contact support if needed.",
+          description: `Your application and ${uploadedDocs.length} documents have been shared with the university. There was an issue sharing some documents - please contact support if needed.`,
           variant: "default"
         });
       } else {
         toast({
-          title: "Application submitted successfully!",
-          description: `Your application and ${uploadedDocs.length} documents have been shared with the university.`,
+          title: "🎉 Application submitted successfully!",
+          description: `Your application${courseName ? ` for ${courseName}` : ''} and ${uploadedDocs.length} documents have been shared with the university. They can now review your profile!`,
+          duration: 6000,
           variant: "default"
         });
+        
+        // Add to applied programs set
+        if (courseId) {
+          setAppliedPrograms(prev => new Set(prev).add(courseId));
+        }
       }
 
       // Reload applications to show the new one
@@ -582,6 +615,8 @@ export default function StudentDashboard() {
         description: error.message || "An error occurred while submitting your application.",
         variant: "destructive"
       });
+    } finally {
+      setApplyingToProgram(null); // Clear loading state
     }
   };
 
@@ -2540,10 +2575,27 @@ export default function StudentDashboard() {
                                         <div className="flex gap-2">
                                           <Button 
                                             size="sm" 
-                                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                            className={`flex-1 ${
+                                              appliedPrograms.has(course.id) 
+                                                ? 'bg-gray-500 hover:bg-gray-600 text-white' 
+                                                : 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-300'
+                                            }`}
                                             onClick={() => handleApply(course)}
+                                            disabled={applyingToProgram === course.id || appliedPrograms.has(course.id)}
                                           >
-                                            Apply Now
+                                            {appliedPrograms.has(course.id) ? (
+                                              <span className="flex items-center gap-2">
+                                                <CheckCircle className="h-4 w-4" />
+                                                Applied
+                                              </span>
+                                            ) : applyingToProgram === course.id ? (
+                                              <span className="flex items-center gap-2">
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Applying...
+                                              </span>
+                                            ) : (
+                                              "Apply Now"
+                                            )}
                                           </Button>
                                           <Button 
                                             size="sm" 
@@ -2666,10 +2718,25 @@ export default function StudentDashboard() {
                                           <Button 
                                             size="sm" 
                                             variant="outline"
-                                            className="flex-1"
+                                            className={`flex-1 ${
+                                              appliedPrograms.has(course.id) ? 'bg-gray-100 text-gray-600' : ''
+                                            }`}
                                             onClick={() => handleApply(course)}
+                                            disabled={applyingToProgram === course.id || appliedPrograms.has(course.id)}
                                           >
-                                            Apply
+                                            {appliedPrograms.has(course.id) ? (
+                                              <span className="flex items-center gap-2">
+                                                <CheckCircle className="h-4 w-4" />
+                                                Applied
+                                              </span>
+                                            ) : applyingToProgram === course.id ? (
+                                              <span className="flex items-center gap-2">
+                                                <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                                                Applying...
+                                              </span>
+                                            ) : (
+                                              "Apply"
+                                            )}
                                           </Button>
                                           <Button 
                                             size="sm" 
@@ -2791,10 +2858,25 @@ export default function StudentDashboard() {
                                           <Button 
                                             size="sm" 
                                             variant="outline"
-                                            className="flex-1"
+                                            className={`flex-1 ${
+                                              appliedPrograms.has(course.id) ? 'bg-gray-100 text-gray-600' : ''
+                                            }`}
                                             onClick={() => handleApply(course)}
+                                            disabled={applyingToProgram === course.id || appliedPrograms.has(course.id)}
                                           >
-                                            Learn More
+                                            {appliedPrograms.has(course.id) ? (
+                                              <span className="flex items-center gap-2">
+                                                <CheckCircle className="h-4 w-4" />
+                                                Applied
+                                              </span>
+                                            ) : applyingToProgram === course.id ? (
+                                              <span className="flex items-center gap-2">
+                                                <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                                                Applying...
+                                              </span>
+                                            ) : (
+                                              "Apply Now"
+                                            )}
                                           </Button>
                                           <Button 
                                             size="sm" 
