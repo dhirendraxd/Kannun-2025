@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { flushSync } from "react-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -252,7 +253,7 @@ export default function StudentDashboard() {
         university_profiles(name, logo_url)
       `)
       .eq('user_id', user.id);
-    
+
     if (applications && applications.length > 0) {
       // Get program details including deadlines for each application
       const programIds = applications
@@ -710,7 +711,9 @@ export default function StudentDashboard() {
 
       // Immediately update UI to show "Applied" state for better UX
       if (courseId) {
-        setAppliedPrograms(prev => new Set(prev).add(courseId));
+        flushSync(() => {
+          setAppliedPrograms(prev => new Set(prev).add(courseId));
+        });
       }
 
       console.log(`📝 Applying to ${courseName || 'program'} with ${uploadedDocs.length} documents...`);
@@ -802,10 +805,12 @@ export default function StudentDashboard() {
       
       // If there's an error, revert the applied state
       if (courseId) {
-        setAppliedPrograms(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(courseId);
-          return newSet;
+        flushSync(() => {
+          setAppliedPrograms(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(courseId);
+            return newSet;
+          });
         });
       }
       
@@ -3160,15 +3165,35 @@ export default function StudentDashboard() {
                                             size="sm" 
                                             variant="outline"
                                             className={`flex-1 ${
-                                              appliedPrograms.has(course.id) ? 'bg-gray-100 text-gray-600' : ''
+                                              appliedPrograms.has(course.id) 
+                                                ? 'bg-gray-100 text-gray-600' 
+                                                : wasAppliedButExpired(course.id)
+                                                  ? 'bg-orange-100 text-orange-700 border-orange-300'
+                                                  : isApplicationExpired(course)
+                                                    ? 'bg-red-100 text-red-700 border-red-300 cursor-not-allowed'
+                                                    : ''
                                             }`}
                                             onClick={() => handleApply(course)}
-                                            disabled={applyingToProgram === course.id || appliedPrograms.has(course.id)}
+                                            disabled={
+                                              applyingToProgram === course.id || 
+                                              appliedPrograms.has(course.id) ||
+                                              isApplicationExpired(course)
+                                            }
                                           >
                                             {appliedPrograms.has(course.id) ? (
                                               <span className="flex items-center gap-2">
                                                 <CheckCircle className="h-4 w-4" />
                                                 Applied
+                                              </span>
+                                            ) : wasAppliedButExpired(course.id) ? (
+                                              <span className="flex items-center gap-2">
+                                                <Clock className="h-4 w-4" />
+                                                Apply Again
+                                              </span>
+                                            ) : isApplicationExpired(course) ? (
+                                              <span className="flex items-center gap-2">
+                                                <X className="h-4 w-4" />
+                                                Expired
                                               </span>
                                             ) : applyingToProgram === course.id ? (
                                               <span className="flex items-center gap-2">
