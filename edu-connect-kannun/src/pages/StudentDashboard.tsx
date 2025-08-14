@@ -940,126 +940,19 @@ export default function StudentDashboard() {
 
   // Generate intelligent suggestions based on document analysis
   const generateIntelligentSuggestions = async (availablePrograms, uploadedDocs, userProfile) => {
-    console.log('Analyzing documents and profile for course matching...');
+    console.log('Analyzing student suitability for available courses...');
     
     // Simulate AI processing time
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Analyze user profile and documents
-    const documentTypes = uploadedDocs.map(doc => doc.name.toLowerCase());
-    const hasTranscripts = documentTypes.some(name => name.includes('transcript'));
-    const hasStatement = documentTypes.some(name => name.includes('statement') || name.includes('essay'));
-    const hasLanguageTest = documentTypes.some(name => name.includes('ielts') || name.includes('toefl'));
-    const hasRecommendations = documentTypes.some(name => name.includes('recommendation'));
-    const hasResume = documentTypes.some(name => name.includes('resume') || name.includes('cv'));
+    // Comprehensive student profile analysis
+    const studentProfile = analyzeStudentProfile(uploadedDocs, userProfile);
+    console.log('Student profile analysis:', studentProfile);
 
-    // Calculate document completeness score
-    let documentScore = 0;
-    if (hasTranscripts) documentScore += 25;
-    if (hasStatement) documentScore += 20;
-    if (hasLanguageTest) documentScore += 20;
-    if (hasRecommendations) documentScore += 20;
-    if (hasResume) documentScore += 15;
-
-    // Analyze academic background
-    const userSpecialization = userProfile?.specialization?.toLowerCase() || '';
-    const userGPA = parseFloat(userProfile?.gpa || '0');
-    const userYear = userProfile?.year_of_study?.toLowerCase() || '';
-
-    // Generate course matches with detailed scoring
-    const courseMatches = availablePrograms.map(program => {
-      const programTitle = program.title.toLowerCase();
-      const programDescription = (program.description || '').toLowerCase();
+    // Evaluate student suitability for each course
+    const courseSuitabilityAnalysis = availablePrograms.map(program => {
+      const suitabilityAnalysis = evaluateStudentSuitability(program, studentProfile, userProfile);
       
-      let matchScore = 15; // Base score
-      const matchReasons = [];
-
-      // Field alignment (40 points max)
-      if (userSpecialization) {
-        if (programTitle.includes(userSpecialization) || programDescription.includes(userSpecialization)) {
-          matchScore += 35;
-          matchReasons.push(`Perfect field match with your ${userProfile.specialization} background`);
-        } else if (userSpecialization.includes('computer') && 
-                  (programTitle.includes('technology') || programTitle.includes('data') || programTitle.includes('software'))) {
-          matchScore += 25;
-          matchReasons.push('Strong match with technology and computer-related fields');
-        } else if (userSpecialization.includes('business') && 
-                  (programTitle.includes('management') || programTitle.includes('finance') || programTitle.includes('economics'))) {
-          matchScore += 25;
-          matchReasons.push('Strong match with business and management fields');
-        } else if (userSpecialization.includes('engineering') && 
-                  (programTitle.includes('technical') || programTitle.includes('science'))) {
-          matchScore += 25;
-          matchReasons.push('Strong match with engineering and technical fields');
-        } else if (programTitle.split(' ').some(word => userSpecialization.includes(word))) {
-          matchScore += 15;
-          matchReasons.push('Partial match with your academic background');
-        }
-      }
-
-      // Academic level alignment (15 points)
-      if (program.degree_level) {
-        const degreeLevel = program.degree_level.toLowerCase();
-        if ((degreeLevel.includes('bachelor') && userYear.includes('final')) ||
-            (degreeLevel.includes('master') && userYear.includes('graduate'))) {
-          matchScore += 15;
-          matchReasons.push('Perfect academic level progression');
-        } else if (degreeLevel.includes('master') && !userYear.includes('first')) {
-          matchScore += 10;
-          matchReasons.push('Good academic level progression');
-        }
-      }
-
-      // GPA alignment (10 points)
-      if (userGPA >= 3.7) {
-        matchScore += 10;
-        matchReasons.push('Excellent GPA meets high program standards');
-      } else if (userGPA >= 3.3) {
-        matchScore += 7;
-        matchReasons.push('Good GPA meets program requirements');
-      } else if (userGPA >= 3.0) {
-        matchScore += 4;
-        matchReasons.push('GPA meets minimum requirements');
-      }
-
-      // Document completeness bonus (20 points)
-      matchScore += Math.round(documentScore * 0.2);
-      if (documentScore >= 80) {
-        matchReasons.push('Complete application profile with all key documents');
-      } else if (documentScore >= 60) {
-        matchReasons.push('Strong application profile with most documents');
-      } else if (documentScore >= 40) {
-        matchReasons.push('Good application foundation');
-      }
-
-      // Scholarship bonus (5 points)
-      if (program.has_scholarships) {
-        matchScore += 5;
-        matchReasons.push(`Scholarships available${program.scholarship_percentage ? ` (up to ${program.scholarship_percentage})` : ''}`);
-      }
-
-      // Location consideration (3 points)
-      if (program.university.location) {
-        matchScore += 3;
-        matchReasons.push(`Located in ${program.university.location}`);
-      }
-
-      // Ensure score is within realistic bounds
-      matchScore = Math.max(10, Math.min(98, Math.round(matchScore)));
-
-      // Add match percentage indicator
-      let matchCategory = 'low';
-      if (matchScore >= 80) {
-        matchCategory = 'high';
-        matchReasons.unshift(`🎯 Excellent Match (${matchScore}%)`);
-      } else if (matchScore >= 40) {
-        matchCategory = 'medium';
-        matchReasons.unshift(`✅ Good Match (${matchScore}%)`);
-      } else {
-        matchCategory = 'low';
-        matchReasons.unshift(`💡 Worth Exploring (${matchScore}%)`);
-      }
-
       return {
         id: program.id,
         title: program.title,
@@ -1070,44 +963,322 @@ export default function StudentDashboard() {
         duration: program.duration,
         tuitionFee: program.tuition_fee,
         description: program.description,
-        matchScore: matchScore,
-        matchReasons: matchReasons.slice(0, 4), // Top 4 reasons
-        matchCategory: matchCategory,
+        matchScore: suitabilityAnalysis.suitabilityScore,
+        suitabilityLevel: suitabilityAnalysis.suitabilityLevel,
+        suitabilityReasons: suitabilityAnalysis.reasons,
+        strengths: suitabilityAnalysis.strengths,
+        improvementAreas: suitabilityAnalysis.improvementAreas,
         applicationDeadline: program.application_deadline,
         deliveryMode: program.delivery_mode,
         hasScholarships: program.has_scholarships,
         scholarshipAmount: program.scholarship_amount,
         scholarshipPercentage: program.scholarship_percentage,
-        logo: program.university.logo_url
+        logo: program.university.logo_url,
+        additionalCriteria: program.additional_criteria,
+        specialRequirements: program.special_requirements
       };
     }).sort((a, b) => b.matchScore - a.matchScore);
 
-    // Categorize results
-    const highMatches = courseMatches.filter(c => c.matchScore >= 80);
-    const mediumMatches = courseMatches.filter(c => c.matchScore >= 40 && c.matchScore < 80);
-    const lowMatches = courseMatches.filter(c => c.matchScore >= 15 && c.matchScore < 40);
+    // Categorize by student suitability level
+    const excellentFit = courseSuitabilityAnalysis.filter(c => c.matchScore >= 85);
+    const goodFit = courseSuitabilityAnalysis.filter(c => c.matchScore >= 70 && c.matchScore < 85);
+    const averageFit = courseSuitabilityAnalysis.filter(c => c.matchScore >= 50 && c.matchScore < 70);
+    const challengingFit = courseSuitabilityAnalysis.filter(c => c.matchScore >= 30 && c.matchScore < 50);
+    const stretchGoals = courseSuitabilityAnalysis.filter(c => c.matchScore < 30);
 
-    // Create final suggestions with good distribution
+    // Create balanced final recommendations
     const finalSuggestions = [
-      ...highMatches.slice(0, 5),
-      ...mediumMatches.slice(0, 4),
-      ...lowMatches.slice(0, 3)
+      ...excellentFit.slice(0, 4),        // Top excellent fits
+      ...goodFit.slice(0, 3),             // Good fits
+      ...averageFit.slice(0, 2),          // Average fits
+      ...challengingFit.slice(0, 2),      // Challenging but possible
+      ...stretchGoals.slice(0, 1)        // One stretch goal
     ];
 
-    console.log(`Generated ${finalSuggestions.length} suggestions:`, {
-      high: highMatches.length,
-      medium: mediumMatches.length,
-      low: lowMatches.length,
-      documentScore,
-      userSpecialization
+    console.log(`Student suitability analysis complete:`, {
+      excellent: excellentFit.length,
+      good: goodFit.length,
+      average: averageFit.length,
+      challenging: challengingFit.length,
+      stretch: stretchGoals.length,
+      totalAnalyzed: availablePrograms.length
     });
 
     setAiCourseSuggestions(finalSuggestions);
     
     toast({
-      title: "🎓 AI Suggestions Generated!",
-      description: `Found ${finalSuggestions.length} personalized matches based on your documents and profile (${highMatches.length} excellent, ${mediumMatches.length} good, ${lowMatches.length} exploratory)`
+      title: "🎓 Student Suitability Analysis Complete!",
+      description: `Analyzed your fit for ${availablePrograms.length} courses. Found ${excellentFit.length} excellent fits, ${goodFit.length} good matches, ${averageFit.length} average fits.`
     });
+  };
+
+  // Analyze comprehensive student profile
+  const analyzeStudentProfile = (documents, profile) => {
+    const analysis = {
+      // Academic strength indicators
+      academicStrength: 'average',
+      gpaLevel: 'unknown',
+      academicBackground: profile?.specialization || 'not specified',
+      currentLevel: profile?.year_of_study || 'not specified',
+      
+      // Document completeness and quality
+      documentQuality: 'basic',
+      hasEssentialDocs: false,
+      hasCompetitiveDocs: false,
+      documentCompleteness: 0,
+      
+      // Language and communication
+      languageProficiency: 'unknown',
+      communicationSkills: 'unknown',
+      
+      // Experience and achievements
+      hasWorkExperience: false,
+      hasRecommendations: false,
+      leadershipPotential: 'unknown',
+      
+      // Application readiness
+      applicationReadiness: 'basic',
+      competitivenessLevel: 'average'
+    };
+
+    // Analyze GPA level
+    if (profile?.gpa) {
+      const gpa = parseFloat(profile.gpa);
+      if (gpa >= 3.8) {
+        analysis.gpaLevel = 'excellent';
+        analysis.academicStrength = 'excellent';
+      } else if (gpa >= 3.5) {
+        analysis.gpaLevel = 'very-good';
+        analysis.academicStrength = 'very-good';
+      } else if (gpa >= 3.2) {
+        analysis.gpaLevel = 'good';
+        analysis.academicStrength = 'good';
+      } else if (gpa >= 2.8) {
+        analysis.gpaLevel = 'average';
+      } else {
+        analysis.gpaLevel = 'below-average';
+        analysis.academicStrength = 'needs-improvement';
+      }
+    }
+
+    // Analyze documents
+    const docTypes = documents.map(doc => doc.name.toLowerCase());
+    let completeness = 0;
+    
+    // Essential documents
+    const hasTranscripts = docTypes.some(name => name.includes('transcript'));
+    const hasStatement = docTypes.some(name => name.includes('statement') || name.includes('essay'));
+    const hasLanguageTest = docTypes.some(name => name.includes('ielts') || name.includes('toefl'));
+    
+    if (hasTranscripts) completeness += 30;
+    if (hasStatement) {
+      completeness += 25;
+      analysis.communicationSkills = 'demonstrated';
+    }
+    if (hasLanguageTest) {
+      completeness += 20;
+      analysis.languageProficiency = 'verified';
+    }
+    
+    // Competitive documents
+    const hasRecommendations = docTypes.some(name => name.includes('recommendation') || name.includes('reference'));
+    const hasResume = docTypes.some(name => name.includes('resume') || name.includes('cv'));
+    const hasPortfolio = docTypes.some(name => name.includes('portfolio') || name.includes('work'));
+    
+    if (hasRecommendations) {
+      completeness += 15;
+      analysis.hasRecommendations = true;
+      analysis.leadershipPotential = 'supported';
+    }
+    if (hasResume) {
+      completeness += 10;
+      analysis.hasWorkExperience = true;
+    }
+    if (hasPortfolio) {
+      completeness += 10;
+      analysis.competitivenessLevel = 'competitive';
+    }
+
+    analysis.documentCompleteness = completeness;
+    analysis.hasEssentialDocs = hasTranscripts && hasStatement && hasLanguageTest;
+    analysis.hasCompetitiveDocs = hasRecommendations && hasResume;
+
+    // Overall document quality assessment
+    if (completeness >= 90) {
+      analysis.documentQuality = 'excellent';
+      analysis.applicationReadiness = 'highly-ready';
+      analysis.competitivenessLevel = 'highly-competitive';
+    } else if (completeness >= 75) {
+      analysis.documentQuality = 'very-good';
+      analysis.applicationReadiness = 'ready';
+      analysis.competitivenessLevel = 'competitive';
+    } else if (completeness >= 60) {
+      analysis.documentQuality = 'good';
+      analysis.applicationReadiness = 'mostly-ready';
+    } else if (completeness >= 40) {
+      analysis.documentQuality = 'basic';
+    } else {
+      analysis.documentQuality = 'incomplete';
+      analysis.applicationReadiness = 'needs-preparation';
+    }
+
+    return analysis;
+  };
+
+  // Evaluate how suitable the student is for a specific course
+  const evaluateStudentSuitability = (program, studentProfile, userProfile) => {
+    let suitabilityScore = 10; // Base score
+    const reasons = [];
+    const strengths = [];
+    const improvementAreas = [];
+
+    // Academic Background Suitability (35 points max)
+    const programField = program.title.toLowerCase();
+    const programDesc = (program.description || '').toLowerCase();
+    const userField = (userProfile?.specialization || '').toLowerCase();
+
+    if (userField && (programField.includes(userField) || programDesc.includes(userField))) {
+      suitabilityScore += 30;
+      strengths.push('Perfect academic background match');
+      reasons.push(`🎯 Your ${userProfile.specialization} background directly aligns with this program`);
+    } else if (userField) {
+      // Check for related fields
+      const fieldMappings = {
+        'computer': ['technology', 'data', 'software', 'programming', 'digital'],
+        'business': ['management', 'finance', 'economics', 'marketing', 'administration'],
+        'engineering': ['technical', 'science', 'mathematics', 'physics', 'chemistry'],
+        'science': ['research', 'laboratory', 'analysis', 'biology', 'chemistry'],
+        'arts': ['design', 'creative', 'media', 'communication', 'liberal'],
+        'health': ['medical', 'nursing', 'healthcare', 'biology', 'psychology']
+      };
+
+      let relatedMatch = false;
+      Object.entries(fieldMappings).forEach(([key, values]) => {
+        if (userField.includes(key) && values.some(v => programField.includes(v) || programDesc.includes(v))) {
+          suitabilityScore += 20;
+          strengths.push('Related field experience');
+          reasons.push(`✅ Your ${userProfile.specialization} background provides relevant foundation`);
+          relatedMatch = true;
+        }
+      });
+
+      if (!relatedMatch) {
+        suitabilityScore += 5;
+        improvementAreas.push('Consider taking preparatory courses in the new field');
+        reasons.push(`💡 Career transition opportunity - your current background offers transferable skills`);
+      }
+    }
+
+    // Academic Performance Suitability (25 points max)
+    if (studentProfile.gpaLevel === 'excellent') {
+      suitabilityScore += 25;
+      strengths.push('Outstanding academic record');
+      reasons.push(`⭐ Your excellent GPA (${userProfile.gpa}) makes you highly competitive`);
+    } else if (studentProfile.gpaLevel === 'very-good') {
+      suitabilityScore += 20;
+      strengths.push('Strong academic performance');
+      reasons.push(`📈 Your strong GPA (${userProfile.gpa}) meets high program standards`);
+    } else if (studentProfile.gpaLevel === 'good') {
+      suitabilityScore += 15;
+      strengths.push('Solid academic foundation');
+      reasons.push(`✅ Your GPA (${userProfile.gpa}) meets program requirements`);
+    } else if (studentProfile.gpaLevel === 'average') {
+      suitabilityScore += 8;
+      improvementAreas.push('Consider strengthening academic profile with additional coursework');
+      reasons.push(`📚 Your GPA meets minimum requirements - focus on other application strengths`);
+    } else {
+      suitabilityScore += 3;
+      improvementAreas.push('Academic improvement recommended before applying');
+      reasons.push(`⚠️ Consider improving academic standing or highlighting other achievements`);
+    }
+
+    // Application Readiness (20 points max)
+    if (studentProfile.applicationReadiness === 'highly-ready') {
+      suitabilityScore += 20;
+      strengths.push('Complete and competitive application profile');
+      reasons.push(`🏆 Your application profile is highly competitive with all essential documents`);
+    } else if (studentProfile.applicationReadiness === 'ready') {
+      suitabilityScore += 16;
+      strengths.push('Well-prepared application');
+      reasons.push(`📋 You have a strong application profile ready for submission`);
+    } else if (studentProfile.applicationReadiness === 'mostly-ready') {
+      suitabilityScore += 12;
+      improvementAreas.push('Add 1-2 additional supporting documents');
+      reasons.push(`📝 Good application foundation - few additional documents needed`);
+    } else {
+      suitabilityScore += 6;
+      improvementAreas.push('Significant document preparation needed');
+      reasons.push(`📄 Application needs preparation - focus on essential documents first`);
+    }
+
+    // Program-specific requirements check (10 points max)
+    let requirementsBonus = 0;
+    if (program.special_requirements || program.additional_criteria) {
+      // Assume student meets some requirements based on their profile quality
+      if (studentProfile.competitivenessLevel === 'highly-competitive') {
+        requirementsBonus = 10;
+        strengths.push('Likely meets all special requirements');
+      } else if (studentProfile.competitivenessLevel === 'competitive') {
+        requirementsBonus = 7;
+        strengths.push('Likely meets most requirements');
+      } else {
+        requirementsBonus = 3;
+        improvementAreas.push('Review and prepare for program-specific requirements');
+      }
+    } else {
+      requirementsBonus = 8; // Bonus for programs with standard requirements
+    }
+    suitabilityScore += requirementsBonus;
+
+    // Scholarship opportunity consideration (5 points bonus)
+    if (program.has_scholarships && studentProfile.competitivenessLevel === 'highly-competitive') {
+      suitabilityScore += 5;
+      strengths.push('Strong scholarship candidate');
+      if (program.scholarship_percentage) {
+        reasons.push(`💰 High scholarship potential (up to ${program.scholarship_percentage})`);
+      }
+    } else if (program.has_scholarships) {
+      suitabilityScore += 2;
+      reasons.push(`💰 Scholarship opportunities available`);
+    }
+
+    // Language requirement consideration (5 points max)
+    if (studentProfile.languageProficiency === 'verified') {
+      suitabilityScore += 5;
+      strengths.push('Language requirements met');
+    } else {
+      improvementAreas.push('Complete language proficiency test (IELTS/TOEFL)');
+    }
+
+    // Ensure realistic scoring
+    suitabilityScore = Math.max(15, Math.min(98, Math.round(suitabilityScore)));
+
+    // Determine suitability level
+    let suitabilityLevel;
+    if (suitabilityScore >= 85) {
+      suitabilityLevel = 'excellent-fit';
+      reasons.unshift(`🌟 EXCELLENT FIT (${suitabilityScore}%) - You are highly suitable for this program`);
+    } else if (suitabilityScore >= 70) {
+      suitabilityLevel = 'good-fit';
+      reasons.unshift(`👍 GOOD FIT (${suitabilityScore}%) - You are well-suited for this program`);
+    } else if (suitabilityScore >= 50) {
+      suitabilityLevel = 'average-fit';
+      reasons.unshift(`📊 AVERAGE FIT (${suitabilityScore}%) - You meet basic requirements`);
+    } else if (suitabilityScore >= 30) {
+      suitabilityLevel = 'challenging-fit';
+      reasons.unshift(`⚡ CHALLENGING (${suitabilityScore}%) - Possible with preparation`);
+    } else {
+      suitabilityLevel = 'stretch-goal';
+      reasons.unshift(`🎯 STRETCH GOAL (${suitabilityScore}%) - Ambitious but achievable with significant preparation`);
+    }
+
+    return {
+      suitabilityScore,
+      suitabilityLevel,
+      reasons: reasons.slice(0, 4), // Top 4 reasons
+      strengths: strengths.slice(0, 3), // Top 3 strengths
+      improvementAreas: improvementAreas.slice(0, 2) // Top 2 improvement areas
+    };
   };
 
   // Fallback course suggestion function
@@ -1736,10 +1907,10 @@ export default function StudentDashboard() {
                         <div>
                           <h3 className="text-lg font-semibold flex items-center gap-2">
                             <Star className="h-5 w-5 text-primary" />
-                            AI Course Recommendations
+                            AI Course Suitability Analysis
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            Personalized suggestions based on your uploaded documents and profile
+                            Discover how suitable you are for each course based on your profile and documents
                           </p>
                         </div>
                         <Button 
@@ -1755,7 +1926,7 @@ export default function StudentDashboard() {
                           ) : (
                             <>
                               <Brain className="h-4 w-4" />
-                              Generate AI Suggestions
+                              Generate Suitability Analysis
                             </>
                           )}
                         </Button>
@@ -1763,13 +1934,13 @@ export default function StudentDashboard() {
                       
                       {aiCourseSuggestions.length > 0 ? (
                         <div className="space-y-6">
-                          {/* High Match Courses (80%+) */}
+                          {/* Excellent Fit Courses (80%+) */}
                           {aiCourseSuggestions.filter(course => course.matchScore >= 80).length > 0 && (
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                                 <h4 className="font-semibold text-green-700 dark:text-green-400">
-                                  Excellent Matches (80%+ match)
+                                  🌟 Excellent Fit - You're Highly Suitable (80%+)
                                 </h4>
                                 <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                   {aiCourseSuggestions.filter(course => course.matchScore >= 80).length} courses
@@ -1824,16 +1995,46 @@ export default function StudentDashboard() {
                                           )}
                                         </div>
 
-                                        <div className="space-y-2 mb-3">
-                                          <p className="text-xs font-medium text-green-700 dark:text-green-400">Why this is a great match:</p>
-                                          <ul className="text-xs space-y-1">
-                                            {course.matchReasons?.slice(0, 2).map((reason, idx) => (
-                                              <li key={idx} className="flex items-center gap-1">
-                                                <CheckCircle className="h-3 w-3 text-green-500" />
-                                                {reason}
-                                              </li>
-                                            ))}
-                                          </ul>
+                                        <div className="space-y-3 mb-3">
+                                          <div className="space-y-2">
+                                            <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Your Suitability for this Program:</p>
+                                            <ul className="text-xs space-y-1">
+                                              {course.suitabilityReasons?.slice(0, 2).map((reason, idx) => (
+                                                <li key={idx} className="flex items-start gap-1">
+                                                  <CheckCircle className="h-3 w-3 text-blue-500 mt-0.5 flex-shrink-0" />
+                                                  <span>{reason}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+
+                                          {course.strengths && course.strengths.length > 0 && (
+                                            <div className="space-y-1">
+                                              <p className="text-xs font-medium text-green-700 dark:text-green-400">Your Strengths:</p>
+                                              <ul className="text-xs space-y-1">
+                                                {course.strengths.slice(0, 2).map((strength, idx) => (
+                                                  <li key={idx} className="flex items-center gap-1 text-green-600">
+                                                    <Star className="h-3 w-3 fill-current" />
+                                                    {strength}
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
+
+                                          {course.improvementAreas && course.improvementAreas.length > 0 && (
+                                            <div className="space-y-1">
+                                              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Areas to Improve:</p>
+                                              <ul className="text-xs space-y-1">
+                                                {course.improvementAreas.slice(0, 1).map((area, idx) => (
+                                                  <li key={idx} className="flex items-start gap-1 text-amber-600">
+                                                    <Brain className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                                    <span>{area}</span>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
                                         </div>
 
                                         <div className="flex gap-2">
@@ -1864,13 +2065,13 @@ export default function StudentDashboard() {
                             </div>
                           )}
 
-                          {/* Medium Match Courses (40-79%) */}
+                          {/* Good Fit Courses (40-79%) */}
                           {aiCourseSuggestions.filter(course => course.matchScore >= 40 && course.matchScore < 80).length > 0 && (
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
                                 <h4 className="font-semibold text-amber-700 dark:text-amber-400">
-                                  Good Matches (40-79% match)
+                                  👍 Good Fit - You're Well-Suited (40-79%)
                                 </h4>
                                 <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                                   {aiCourseSuggestions.filter(course => course.matchScore >= 40 && course.matchScore < 80).length} courses
@@ -1919,16 +2120,46 @@ export default function StudentDashboard() {
                                           )}
                                         </div>
 
-                                        <div className="space-y-2 mb-3">
-                                          <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Why consider this option:</p>
-                                          <ul className="text-xs space-y-1">
-                                            {course.matchReasons?.slice(0, 2).map((reason, idx) => (
-                                              <li key={idx} className="flex items-center gap-1">
-                                                <div className="h-2 w-2 bg-amber-500 rounded-full" />
-                                                {reason}
-                                              </li>
-                                            ))}
-                                          </ul>
+                                        <div className="space-y-3 mb-3">
+                                          <div className="space-y-2">
+                                            <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Your Suitability Assessment:</p>
+                                            <ul className="text-xs space-y-1">
+                                              {course.suitabilityReasons?.slice(0, 2).map((reason, idx) => (
+                                                <li key={idx} className="flex items-start gap-1">
+                                                  <div className="h-2 w-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />
+                                                  <span>{reason}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+
+                                          {course.strengths && course.strengths.length > 0 && (
+                                            <div className="space-y-1">
+                                              <p className="text-xs font-medium text-green-700 dark:text-green-400">Your Strengths:</p>
+                                              <ul className="text-xs space-y-1">
+                                                {course.strengths.slice(0, 1).map((strength, idx) => (
+                                                  <li key={idx} className="flex items-center gap-1 text-green-600">
+                                                    <Star className="h-3 w-3 fill-current" />
+                                                    {strength}
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
+
+                                          {course.improvementAreas && course.improvementAreas.length > 0 && (
+                                            <div className="space-y-1">
+                                              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Areas to Strengthen:</p>
+                                              <ul className="text-xs space-y-1">
+                                                {course.improvementAreas.slice(0, 1).map((area, idx) => (
+                                                  <li key={idx} className="flex items-start gap-1 text-amber-600">
+                                                    <Brain className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                                    <span>{area}</span>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
                                         </div>
 
                                         <div className="flex gap-2">
@@ -1960,20 +2191,20 @@ export default function StudentDashboard() {
                             </div>
                           )}
 
-                          {/* Low Match Courses (15-39%) */}
+                          {/* Growth Opportunity Courses (15-39%) */}
                           {aiCourseSuggestions.filter(course => course.matchScore < 40).length > 0 && (
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                                 <h4 className="font-semibold text-blue-700 dark:text-blue-400">
-                                  Alternative Options (15-39% match)
+                                  🎯 Growth Opportunities - Challenging but Achievable (15-39%)
                                 </h4>
                                 <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                                   {aiCourseSuggestions.filter(course => course.matchScore < 40).length} courses
                                 </Badge>
                               </div>
                               <p className="text-sm text-muted-foreground">
-                                Explore these programs to broaden your horizons or discover new career paths.
+                                Programs that require preparation but offer excellent growth potential and career expansion opportunities.
                               </p>
                               <div className="grid gap-4 md:grid-cols-2">
                                 {aiCourseSuggestions
@@ -2014,16 +2245,46 @@ export default function StudentDashboard() {
                                           )}
                                         </div>
 
-                                        <div className="space-y-2 mb-3">
-                                          <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Potential benefits:</p>
-                                          <ul className="text-xs space-y-1">
-                                            {course.matchReasons?.slice(0, 2).map((reason, idx) => (
-                                              <li key={idx} className="flex items-center gap-1">
-                                                <div className="h-2 w-2 bg-blue-500 rounded-full" />
-                                                {reason}
-                                              </li>
-                                            ))}
-                                          </ul>
+                                        <div className="space-y-3 mb-3">
+                                          <div className="space-y-2">
+                                            <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Growth Opportunity Assessment:</p>
+                                            <ul className="text-xs space-y-1">
+                                              {course.suitabilityReasons?.slice(0, 2).map((reason, idx) => (
+                                                <li key={idx} className="flex items-start gap-1">
+                                                  <div className="h-2 w-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />
+                                                  <span>{reason}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+
+                                          {course.improvementAreas && course.improvementAreas.length > 0 && (
+                                            <div className="space-y-1">
+                                              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Preparation Needed:</p>
+                                              <ul className="text-xs space-y-1">
+                                                {course.improvementAreas.slice(0, 2).map((area, idx) => (
+                                                  <li key={idx} className="flex items-start gap-1 text-amber-600">
+                                                    <Brain className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                                    <span>{area}</span>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
+
+                                          {course.strengths && course.strengths.length > 0 && (
+                                            <div className="space-y-1">
+                                              <p className="text-xs font-medium text-green-700 dark:text-green-400">Your Advantages:</p>
+                                              <ul className="text-xs space-y-1">
+                                                {course.strengths.slice(0, 1).map((strength, idx) => (
+                                                  <li key={idx} className="flex items-center gap-1 text-green-600">
+                                                    <Star className="h-3 w-3 fill-current" />
+                                                    {strength}
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
                                         </div>
 
                                         <div className="flex gap-2">
