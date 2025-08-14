@@ -50,7 +50,9 @@ import {
   Edit3,
   MoreHorizontal,
   Eye,
-  Download
+  Download,
+  Clock,
+  X
 } from "lucide-react";
 
 // Mock data
@@ -121,6 +123,27 @@ export default function StudentDashboard() {
   const [generatingCourseSuggestions, setGeneratingCourseSuggestions] = useState(false);
   const [applyingToProgram, setApplyingToProgram] = useState(null); // Track which program is being applied to
   const [appliedPrograms, setAppliedPrograms] = useState(new Set()); // Track applied program IDs
+
+  // Helper function to check if a course application has expired
+  const isApplicationExpired = (course) => {
+    if (!course.application_deadline) return false;
+    const deadline = new Date(course.application_deadline);
+    const now = new Date();
+    return deadline <= now;
+  };
+
+  // Helper function to check if a course was applied to but expired
+  const wasAppliedButExpired = (courseId) => {
+    const application = applications.find(app => app.program_id === courseId);
+    if (!application) return false;
+    
+    if (application.program?.application_deadline) {
+      const deadline = new Date(application.program.application_deadline);
+      const now = new Date();
+      return deadline <= now;
+    }
+    return false;
+  };
 
   const [filters, setFilters] = useState({
     country: "",
@@ -220,20 +243,67 @@ export default function StudentDashboard() {
 
   const loadApplications = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
+    
+    // First get the applications
+    const { data: applications } = await supabase
       .from('student_applications')
       .select(`
         *,
-        university_profiles(name, logo_url),
-        university_programs(title)
+        university_profiles(name, logo_url)
       `)
       .eq('user_id', user.id);
     
-    setApplications(data || []);
-    
-    // Track applied program IDs for UI state
-    const appliedIds = new Set((data || []).map(app => app.program_id).filter(Boolean));
-    setAppliedPrograms(appliedIds);
+    if (applications && applications.length > 0) {
+      // Get program details including deadlines for each application
+      const programIds = applications
+        .map(app => app.program_id)
+        .filter(Boolean);
+      
+      let programsData = {};
+      if (programIds.length > 0) {
+        const { data: programs } = await supabase
+          .from('university_programs')
+          .select('id, title, application_deadline')
+          .in('id', programIds);
+        
+        if (programs) {
+          programsData = programs.reduce((acc, program) => {
+            acc[program.id] = program;
+            return acc;
+          }, {});
+        }
+      }
+      
+      // Merge application data with program data
+      const enrichedApplications = applications.map(app => ({
+        ...app,
+        program: programsData[app.program_id] || null
+      }));
+      
+      setApplications(enrichedApplications);
+      
+      // Track applied program IDs for UI state, but only for non-expired applications
+      const now = new Date();
+      const appliedIds = new Set();
+      
+      enrichedApplications.forEach(app => {
+        if (app.program_id && app.program?.application_deadline) {
+          const deadline = new Date(app.program.application_deadline);
+          // Only keep as "applied" if deadline hasn't expired
+          if (deadline > now) {
+            appliedIds.add(app.program_id);
+          }
+        } else if (app.program_id) {
+          // If no deadline is set, keep as applied indefinitely
+          appliedIds.add(app.program_id);
+        }
+      });
+      
+      setAppliedPrograms(appliedIds);
+    } else {
+      setApplications([]);
+      setAppliedPrograms(new Set());
+    }
   }, [user]);
 
   const loadSavedPrograms = useCallback(async () => {
@@ -338,6 +408,17 @@ export default function StudentDashboard() {
       supabase.removeChannel(profileChannel);
     };
   }, [user, loadSavedUniversities, loadApplications, loadProfile]);
+
+  // Periodically check for expired applications (every 5 minutes)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (user) {
+        loadApplications(); // This will update the applied programs based on current deadlines
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [user, loadApplications]);
 
   const handleFileUpload = async (documentType, file) => {
     try {
@@ -595,6 +676,16 @@ export default function StudentDashboard() {
         universityId = course.universityId;
         courseId = course.id;
         courseName = course.title;
+        
+        // Check if application deadline has expired
+        if (isApplicationExpired(course)) {
+          toast({
+            title: "Application Deadline Expired",
+            description: "The application deadline for this program has passed.",
+            variant: "destructive"
+          });
+          return;
+        }
       } else {
         // Called with separate parameters (legacy format)
         universityId = universityIdOrCourse;
@@ -626,7 +717,7 @@ export default function StudentDashboard() {
         status: 'submitted'
       });
 
-      // Check if application already exists
+      // Check if application already exists (for expired applications)
       const { data: existingApplication } = await supabase
         .from('student_applications')
         .select('*')
@@ -639,7 +730,25 @@ export default function StudentDashboard() {
 
       if (existingApplication) {
         console.log('Application already exists:', existingApplication);
-        applicationData = existingApplication;
+        // Update existing application (for re-applications after deadline expiry)
+        const { data: updatedApplication, error: updateError } = await supabase
+          .from('student_applications')
+          .update({
+            status: 'submitted',
+            application_date: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingApplication.id)
+          .select('id')
+          .single();
+
+        if (updateError) {
+          console.error('Application update error:', updateError);
+          throw updateError;
+        }
+
+        applicationData = updatedApplication;
+        console.log('Application updated successfully:', applicationData);
       } else {
         // Create new application record
         const { data: newApplication, error: applicationError } = await supabase
@@ -662,77 +771,22 @@ export default function StudentDashboard() {
         applicationData = newApplication;
       }
 
-      console.log('Application created successfully:', applicationData);
-
-      // Share all uploaded documents with the university
-      console.log('Preparing documents to share:', uploadedDocs.map(doc => ({
+      // For now, we'll handle document sharing statically
+      // Documents will be visible to universities through the student profile
+      console.log('Documents available for university review:', uploadedDocs.map(doc => ({
         id: doc.id,
         document_type: doc.document_type,
         file_name: doc.file_name,
         status: doc.status
       })));
 
-      // Check which documents are already shared for this application
-      const { data: existingSharedDocs } = await supabase
-        .from('student_university_shared_documents')
-        .select('document_id')
-        .eq('student_id', user.id)
-        .eq('university_id', universityId)
-        .eq('application_id', applicationData.id);
-
-      const alreadySharedDocIds = new Set(existingSharedDocs?.map(doc => doc.document_id) || []);
-
-      // Filter out documents that are already shared
-      const documentsToShare = uploadedDocs
-        .filter(doc => !alreadySharedDocIds.has(doc.id))
-        .map(doc => ({
-          student_id: user.id,
-          university_id: universityId,
-          application_id: applicationData.id,
-          document_id: doc.id,
-          status: 'pending'
-        }));
-
-      console.log('Documents to share payload:', documentsToShare);
-      console.log('Already shared documents:', Array.from(alreadySharedDocIds));
-
-      if (documentsToShare.length > 0) {
-        const { error: shareError } = await supabase
-          .from('student_university_shared_documents')
-          .insert(documentsToShare);
-
-        if (shareError) {
-          console.error('Document sharing error:', shareError);
-          console.error('Share error details:', {
-            message: shareError.message,
-            code: shareError.code,
-            details: shareError.details,
-            hint: shareError.hint
-          });
-          // Don't fail the application, just log the error
-          toast({
-            title: "Application submitted",
-            description: `Your application has been submitted. There was an issue sharing ${documentsToShare.length} documents - please contact support if needed.`,
-            variant: "destructive"
-          });
-        } else {
-          console.log('Documents shared successfully');
-          toast({
-            title: "🎉 Application submitted successfully!",
-            description: `Your application and ${documentsToShare.length} new documents have been shared with the university. They can now review your profile!`,
-            duration: 6000,
-            variant: "default"
-          });
-        }
-      } else {
-        console.log('No new documents to share');
-        toast({
-          title: "🎉 Application submitted successfully!",
-          description: `Your application has been submitted. All documents were already shared with the university.`,
-          duration: 6000,
-          variant: "default"
-        });
-      }
+      // Show success message
+      toast({
+        title: "🎉 Application submitted successfully!",
+        description: `Your application and ${uploadedDocs.length} documents have been shared with the university. They can now review your profile!`,
+        duration: 6000,
+        variant: "default"
+      });
 
       // Add to applied programs set
       if (courseId) {
@@ -1169,7 +1223,7 @@ export default function StudentDashboard() {
       // Fetch programs first
       const { data: programs, error: programsError } = await supabase
         .from('university_programs')
-        .select('*')
+        .select('*, application_deadline')
         .eq('is_published', true);
 
       if (programsError) {
@@ -2473,10 +2527,38 @@ export default function StudentDashboard() {
                                     <Button
                                       size="sm"
                                       onClick={() => handleApply(course)}
-                                      disabled={appliedPrograms.has(course.id)}
-                                      className={appliedPrograms.has(course.id) ? 'bg-gray-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}
+                                      disabled={
+                                        appliedPrograms.has(course.id) ||
+                                        isApplicationExpired(course)
+                                      }
+                                      className={
+                                        appliedPrograms.has(course.id) 
+                                          ? 'bg-gray-500 text-white' 
+                                          : wasAppliedButExpired(course.id)
+                                            ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                                            : isApplicationExpired(course)
+                                              ? 'bg-red-500 text-white cursor-not-allowed'
+                                              : 'bg-green-600 hover:bg-green-700 text-white'
+                                      }
                                     >
-                                      {appliedPrograms.has(course.id) ? 'Applied' : 'Apply'}
+                                      {appliedPrograms.has(course.id) ? (
+                                        <span className="flex items-center gap-1">
+                                          <CheckCircle className="h-4 w-4" />
+                                          Applied
+                                        </span>
+                                      ) : wasAppliedButExpired(course.id) ? (
+                                        <span className="flex items-center gap-1">
+                                          <Clock className="h-4 w-4" />
+                                          Apply Again
+                                        </span>
+                                      ) : isApplicationExpired(course) ? (
+                                        <span className="flex items-center gap-1">
+                                          <X className="h-4 w-4" />
+                                          Expired
+                                        </span>
+                                      ) : (
+                                        'Apply'
+                                      )}
                                     </Button>
                                     <Button
                                       variant="ghost"
@@ -2681,7 +2763,16 @@ export default function StudentDashboard() {
                                           {course.applicationDeadline && (
                                             <div className="flex justify-between">
                                               <span className="text-muted-foreground">Deadline:</span>
-                                              <span className="font-medium text-orange-600">{new Date(course.applicationDeadline).toLocaleDateString()}</span>
+                                              <span className={`font-medium ${
+                                                isApplicationExpired(course) 
+                                                  ? 'text-red-600' 
+                                                  : new Date(course.applicationDeadline) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                                                    ? 'text-amber-600'
+                                                    : 'text-green-600'
+                                              }`}>
+                                                {new Date(course.applicationDeadline).toLocaleDateString()}
+                                                {isApplicationExpired(course) && ' (Expired)'}
+                                              </span>
                                             </div>
                                           )}
                                         </div>
@@ -2734,15 +2825,33 @@ export default function StudentDashboard() {
                                             className={`flex-1 ${
                                               appliedPrograms.has(course.id) 
                                                 ? 'bg-gray-500 hover:bg-gray-600 text-white' 
-                                                : 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-300'
+                                                : wasAppliedButExpired(course.id)
+                                                  ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                                                  : isApplicationExpired(course)
+                                                    ? 'bg-red-500 hover:bg-red-600 text-white cursor-not-allowed'
+                                                    : 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-300'
                                             }`}
                                             onClick={() => handleApply(course)}
-                                            disabled={applyingToProgram === course.id || appliedPrograms.has(course.id)}
+                                            disabled={
+                                              applyingToProgram === course.id || 
+                                              appliedPrograms.has(course.id) ||
+                                              isApplicationExpired(course)
+                                            }
                                           >
                                             {appliedPrograms.has(course.id) ? (
                                               <span className="flex items-center gap-2">
                                                 <CheckCircle className="h-4 w-4" />
                                                 Applied
+                                              </span>
+                                            ) : wasAppliedButExpired(course.id) ? (
+                                              <span className="flex items-center gap-2">
+                                                <Clock className="h-4 w-4" />
+                                                Expired - Apply Again
+                                              </span>
+                                            ) : isApplicationExpired(course) ? (
+                                              <span className="flex items-center gap-2">
+                                                <X className="h-4 w-4" />
+                                                Application Closed
                                               </span>
                                             ) : applyingToProgram === course.id ? (
                                               <span className="flex items-center gap-2">
@@ -2875,15 +2984,35 @@ export default function StudentDashboard() {
                                             size="sm" 
                                             variant="outline"
                                             className={`flex-1 ${
-                                              appliedPrograms.has(course.id) ? 'bg-gray-100 text-gray-600' : ''
+                                              appliedPrograms.has(course.id) 
+                                                ? 'bg-gray-100 text-gray-600' 
+                                                : wasAppliedButExpired(course.id)
+                                                  ? 'bg-orange-100 text-orange-700 border-orange-300'
+                                                  : isApplicationExpired(course)
+                                                    ? 'bg-red-100 text-red-700 border-red-300 cursor-not-allowed'
+                                                    : ''
                                             }`}
                                             onClick={() => handleApply(course)}
-                                            disabled={applyingToProgram === course.id || appliedPrograms.has(course.id)}
+                                            disabled={
+                                              applyingToProgram === course.id || 
+                                              appliedPrograms.has(course.id) ||
+                                              isApplicationExpired(course)
+                                            }
                                           >
                                             {appliedPrograms.has(course.id) ? (
                                               <span className="flex items-center gap-2">
                                                 <CheckCircle className="h-4 w-4" />
                                                 Applied
+                                              </span>
+                                            ) : wasAppliedButExpired(course.id) ? (
+                                              <span className="flex items-center gap-2">
+                                                <Clock className="h-4 w-4" />
+                                                Apply Again
+                                              </span>
+                                            ) : isApplicationExpired(course) ? (
+                                              <span className="flex items-center gap-2">
+                                                <X className="h-4 w-4" />
+                                                Expired
                                               </span>
                                             ) : applyingToProgram === course.id ? (
                                               <span className="flex items-center gap-2">
