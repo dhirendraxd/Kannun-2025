@@ -7,18 +7,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { Brain, FileText, GraduationCap, CheckSquare, MessageCircle, Loader2 } from 'lucide-react';
 
 interface AIAssistantProps {
   userId: string;
-  documents: any[];
+  documents: Array<{ id: string; document_type: string; file_name: string; status: string }>;
 }
 
 export function AIAssistant({ userId, documents }: AIAssistantProps) {
   const [loading, setLoading] = useState(false);
+  const [assistantLoading, setAssistantLoading] = useState(false);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [question, setQuestion] = useState('');
+  const { toast } = useToast();
   const [preferences, setPreferences] = useState({
     budget: '',
     location: '',
@@ -28,7 +30,7 @@ export function AIAssistant({ userId, documents }: AIAssistantProps) {
     program: ''
   });
 
-  const callAIAssistant = async (action: string, data: any) => {
+  const callAIAssistant = async (action: string, data: Record<string, unknown>) => {
     setLoading(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('ai-assistant', {
@@ -39,39 +41,433 @@ export function AIAssistant({ userId, documents }: AIAssistantProps) {
 
       if (result.success) {
         setResponses(prev => ({ ...prev, [action]: result.response }));
-        toast.success('AI analysis completed!');
+        toast({
+          title: "Success",
+          description: "AI analysis completed!",
+        });
       } else {
         throw new Error(result.error);
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('AI Assistant error:', error);
-      toast.error('Failed to get AI response: ' + error.message);
+      toast({
+        title: "Error",
+        description: "Failed to get AI response: " + (error instanceof Error ? error.message : 'Unknown error'),
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const analyzeDocument = async (doc: any) => {
-    await callAIAssistant('analyze_documents', {
-      documentType: doc.document_type,
-      content: `Document: ${doc.file_name}`
-    });
+  const analyzeDocument = async (doc: { document_type: string; file_name: string }) => {
+    setLoading(true);
+    console.log('Analyzing document:', doc);
+    
+    try {
+      await callAIAssistant('analyze_documents', {
+        documentType: doc.document_type,
+        content: `Document: ${doc.file_name}`
+      });
+      console.log('Document analysis completed successfully');
+    } catch (error) {
+      console.error('Error analyzing document:', error);
+      // Provide fallback document analysis
+      const fallbackAnalysis = `Document Analysis for ${doc.file_name} (${doc.document_type}):
+
+**Document Type:** ${doc.document_type}
+**File:** ${doc.file_name}
+
+I'm currently experiencing technical difficulties analyzing your document, but here's some general guidance:
+
+**For ${doc.document_type} documents:**
+• Ensure the document is clear and readable
+• Verify all information is accurate and up-to-date
+• Check that the document meets university requirements
+• Consider having it officially translated if in another language
+
+**General Document Tips:**
+• Keep original copies safe
+• Make multiple copies for applications
+• Ensure documents are properly certified/attested if required
+• Check expiration dates on official documents
+
+**Next Steps:**
+1. Review the document manually for completeness
+2. Compare against university-specific requirements
+3. Consult with an admissions counselor for detailed feedback
+4. Consider professional document review services if needed
+
+For detailed analysis, please try again later or seek professional assistance.`;
+
+      setResponses(prev => ({ 
+        ...prev, 
+        analyze_documents: fallbackAnalysis
+      }));
+      
+      toast({
+        title: "Analysis Generated",
+        description: "Generated general document guidance (with limited AI functionality).",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const suggestUniversities = async () => {
-    await callAIAssistant('suggest_universities', preferences);
+    if (!preferences.budget || !preferences.location || !preferences.field || !preferences.level) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all fields (budget, location, field, and level) to get personalized university recommendations.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    console.log('Getting university suggestions with preferences:', preferences);
+    
+    try {
+      // First, fetch all published universities
+      const { data: universities, error: uniError } = await supabase
+        .from('university_profiles')
+        .select('*')
+        .eq('is_published', true);
+
+      if (uniError) throw uniError;
+
+      // Then, fetch all published programs
+      const { data: programs, error: progError } = await supabase
+        .from('university_programs')
+        .select('*')
+        .eq('is_published', true);
+
+      if (progError) throw progError;
+
+      // Group programs by university
+      const programsByUniversity = programs?.reduce((acc, program) => {
+        if (!acc[program.university_id]) {
+          acc[program.university_id] = [];
+        }
+        acc[program.university_id].push(program);
+        return acc;
+      }, {} as Record<string, typeof programs>) || {};
+
+      // Filter and match universities based on user preferences
+      let matchedUniversities = universities?.filter(uni => {
+        const uniPrograms = programsByUniversity[uni.id] || [];
+        
+        // Location matching (case insensitive, partial match)
+        const locationMatch = !preferences.location || 
+          uni.location?.toLowerCase().includes(preferences.location.toLowerCase());
+        
+        // Field matching (check program titles)
+        const fieldMatch = !preferences.field ||
+          uniPrograms.some(program => 
+            program.title?.toLowerCase().includes(preferences.field.toLowerCase()) ||
+            program.description?.toLowerCase().includes(preferences.field.toLowerCase())
+          );
+
+        // Level matching (check degree levels)
+        const levelMatch = !preferences.level ||
+          uniPrograms.some(program => 
+            program.degree_level?.toLowerCase().includes(preferences.level.toLowerCase())
+          );
+
+        return locationMatch && fieldMatch && levelMatch;
+      }).map(uni => ({
+        ...uni,
+        programs: programsByUniversity[uni.id] || []
+      })) || [];
+
+      // If budget is specified, filter programs by tuition fees
+      if (preferences.budget) {
+        const budgetNumber = parseInt(preferences.budget.replace(/[^0-9]/g, ''));
+        if (budgetNumber > 0) {
+          matchedUniversities = matchedUniversities.map(uni => ({
+            ...uni,
+            programs: uni.programs.filter(program => {
+              if (!program.tuition_fee) return true; // Include if no fee specified
+              const tuitionNumber = parseInt(program.tuition_fee.replace(/[^0-9]/g, ''));
+              return tuitionNumber <= budgetNumber * 1.2; // 20% buffer
+            })
+          })).filter(uni => uni.programs.length > 0);
+        }
+      }
+
+      // Generate recommendations text
+      let recommendationsText = `🎓 **University Recommendations Based on Your Preferences:**\n\n`;
+      recommendationsText += `**Your Criteria:**\n`;
+      recommendationsText += `• Budget: ${preferences.budget}\n`;
+      recommendationsText += `• Location: ${preferences.location}\n`;
+      recommendationsText += `• Field of Study: ${preferences.field}\n`;
+      recommendationsText += `• Academic Level: ${preferences.level}\n\n`;
+
+      if (matchedUniversities.length === 0) {
+        recommendationsText += `❌ **No exact matches found** in our database for your specific criteria.\n\n`;
+        recommendationsText += `**Suggestions:**\n`;
+        recommendationsText += `• Try broadening your location preference\n`;
+        recommendationsText += `• Consider related fields to ${preferences.field}\n`;
+        recommendationsText += `• Explore different degree levels\n`;
+        recommendationsText += `• Adjust your budget range\n\n`;
+        
+        // Show some general universities from the database
+        const generalUnis = universities?.slice(0, 3) || [];
+        if (generalUnis.length > 0) {
+          recommendationsText += `**Other Universities Available on Our Platform:**\n`;
+          generalUnis.forEach((uni, index) => {
+            const uniPrograms = programsByUniversity[uni.id] || [];
+            recommendationsText += `\n**${index + 1}. ${uni.name}**\n`;
+            recommendationsText += `📍 Location: ${uni.location || 'Not specified'}\n`;
+            if (uni.description) {
+              recommendationsText += `📝 ${uni.description.substring(0, 150)}...\n`;
+            }
+            if (uniPrograms.length > 0) {
+              recommendationsText += `🎓 Available Programs: ${uniPrograms.length} programs\n`;
+            }
+            if (uni.website) {
+              recommendationsText += `🌐 Website: ${uni.website}\n`;
+            }
+          });
+        }
+      } else {
+        recommendationsText += `✅ **Found ${matchedUniversities.length} matching ${matchedUniversities.length === 1 ? 'university' : 'universities'}:**\n\n`;
+        
+        matchedUniversities.forEach((uni, index) => {
+          recommendationsText += `**${index + 1}. ${uni.name}**\n`;
+          recommendationsText += `📍 Location: ${uni.location || 'Not specified'}\n`;
+          
+          if (uni.description) {
+            recommendationsText += `📝 About: ${uni.description.substring(0, 200)}...\n`;
+          }
+          
+          // Show matching programs
+          if (uni.programs.length > 0) {
+            recommendationsText += `\n🎓 **Matching Programs:**\n`;
+            uni.programs.slice(0, 3).forEach(program => {
+              recommendationsText += `   • **${program.title}**\n`;
+              recommendationsText += `     - Level: ${program.degree_level || 'Not specified'}\n`;
+              if (program.tuition_fee) {
+                recommendationsText += `     - Tuition: ${program.tuition_fee}\n`;
+              }
+              if (program.duration) {
+                recommendationsText += `     - Duration: ${program.duration}\n`;
+              }
+              if (program.has_scholarships) {
+                recommendationsText += `     - 💰 Scholarships Available`;
+                if (program.scholarship_percentage) {
+                  recommendationsText += ` (${program.scholarship_percentage})`;
+                }
+                recommendationsText += `\n`;
+              }
+            });
+            
+            if (uni.programs.length > 3) {
+              recommendationsText += `   ... and ${uni.programs.length - 3} more programs\n`;
+            }
+          }
+          
+          if (uni.website) {
+            recommendationsText += `🌐 Website: ${uni.website}\n`;
+          }
+          if (uni.contact_email) {
+            recommendationsText += `📧 Contact: ${uni.contact_email}\n`;
+          }
+          
+          recommendationsText += `\n---\n\n`;
+        });
+        
+        recommendationsText += `**💡 Next Steps:**\n`;
+        recommendationsText += `• Visit the university websites for detailed information\n`;
+        recommendationsText += `• Contact admissions offices directly\n`;
+        recommendationsText += `• Apply to programs that match your profile\n`;
+        recommendationsText += `• Look into scholarship opportunities\n`;
+      }
+
+      recommendationsText += `\n*All recommendations are based on universities and programs available on our platform.*`;
+
+      setResponses(prev => ({ 
+        ...prev, 
+        suggest_universities: recommendationsText
+      }));
+      
+      toast({
+        title: "Success",
+        description: `Found ${matchedUniversities.length} matching ${matchedUniversities.length === 1 ? 'university' : 'universities'} from our database.`,
+      });
+      
+      console.log('University suggestions completed successfully');
+    } catch (error) {
+      console.error('Error getting university suggestions:', error);
+      
+      // Fallback: still try to show some universities from database
+      try {
+        const { data: fallbackUnis } = await supabase
+          .from('university_profiles')
+          .select('id, name, location, description, website')
+          .eq('is_published', true)
+          .limit(5);
+
+        const fallbackResponse = `⚠️ **Technical Issue Occurred**
+
+I encountered an error while processing your specific criteria, but here are some universities available on our platform:
+
+${fallbackUnis?.map((uni, index) => `
+**${index + 1}. ${uni.name}**
+📍 Location: ${uni.location || 'Not specified'}
+${uni.description ? `📝 ${uni.description.substring(0, 150)}...` : ''}
+${uni.website ? `🌐 ${uni.website}` : ''}
+`).join('\n') || 'No universities found in database.'}
+
+**To get better recommendations:**
+1. Make sure all fields are filled correctly
+2. Try adjusting your criteria slightly
+3. Contact our support team for assistance
+
+*Please try again or browse our universities directly.*`;
+
+        setResponses(prev => ({ 
+          ...prev, 
+          suggest_universities: fallbackResponse
+        }));
+        
+        toast({
+          title: "Partial Results",
+          description: "Showing available universities due to technical issues.",
+        });
+      } catch (fallbackError) {
+        console.error('Fallback query also failed:', fallbackError);
+        
+        const errorResponse = `❌ **Unable to Load Recommendations**
+
+I'm experiencing technical difficulties connecting to our university database.
+
+**What you can do:**
+1. Check your internet connection
+2. Try refreshing the page
+3. Browse universities manually from our homepage
+4. Contact support if the issue persists
+
+**Your Preferences:**
+• Budget: ${preferences.budget}
+• Location: ${preferences.location}
+• Field: ${preferences.field}
+• Level: ${preferences.level}
+
+Please try again in a moment or contact our support team.`;
+
+        setResponses(prev => ({ 
+          ...prev, 
+          suggest_universities: errorResponse
+        }));
+        
+        toast({
+          title: "Error",
+          description: "Failed to connect to university database. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const generateChecklist = async () => {
-    await callAIAssistant('generate_checklist', {
-      targetCountry: preferences.targetCountry,
-      program: preferences.program
-    });
+    if (!preferences.targetCountry || !preferences.program) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in both target country and program to generate a personalized checklist.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    console.log('Generating checklist for:', { targetCountry: preferences.targetCountry, program: preferences.program });
+    
+    try {
+      await callAIAssistant('generate_checklist', {
+        targetCountry: preferences.targetCountry,
+        program: preferences.program
+      });
+      console.log('Checklist generated successfully');
+    } catch (error) {
+      console.error('Error generating checklist:', error);
+      // Provide fallback checklist
+      const fallbackChecklist = `Application Checklist for ${preferences.program} in ${preferences.targetCountry}:
+
+**Academic Documents:**
+✓ Official transcripts from all institutions
+✓ Degree certificates/diplomas
+✓ Grade conversion (if applicable)
+✓ Course descriptions/syllabi
+
+**Test Scores:**
+✓ Standardized test scores (SAT, GRE, GMAT as required)
+✓ English proficiency test (TOEFL, IELTS, PTE)
+✓ Subject-specific tests if required
+
+**Application Materials:**
+✓ Completed application forms
+✓ Personal statement/statement of purpose
+✓ Letters of recommendation (2-3)
+✓ Resume/CV
+✓ Portfolio (if applicable)
+
+**Financial Documentation:**
+✓ Bank statements
+✓ Scholarship applications
+✓ Financial aid forms
+✓ Sponsor letters (if applicable)
+
+**Additional Requirements:**
+✓ Passport (valid for at least 6 months)
+✓ Student visa application
+✓ Medical examinations
+✓ Background checks (if required)
+
+**Important Notes:**
+- Start preparing documents 6-12 months in advance
+- Check specific requirements for each university
+- Verify document translation and attestation needs
+- Keep multiple copies of all documents
+
+This is a general checklist. Please verify specific requirements with your target universities and consult with an education counselor for personalized guidance.`;
+
+      setResponses(prev => ({ 
+        ...prev, 
+        generate_checklist: fallbackChecklist
+      }));
+      
+      toast({
+        title: "Checklist Generated",
+        description: "Generated a general checklist based on your inputs (with limited AI functionality).",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const askQuestion = async () => {
     if (!question.trim()) return;
-    await callAIAssistant('admissions_assistant', { question });
+    
+    console.log('Asking AI question:', question);
+    setAssistantLoading(true);
+    
+    try {
+      await callAIAssistant('admissions_assistant', { question });
+      console.log('Question sent successfully');
+    } catch (error) {
+      console.error('Error asking question:', error);
+      // Show a fallback response if AI fails
+      setResponses(prev => ({ 
+        ...prev, 
+        admissions_assistant: `Thank you for your question: "${question}"\n\nI'm here to help with university admissions, but I'm currently experiencing some technical difficulties. Here are some general tips:\n\n• Research universities that match your academic background and interests\n• Check admission requirements and deadlines early\n• Prepare required documents (transcripts, test scores, personal statements)\n• Look into scholarship opportunities\n• Consider reaching out to university admissions offices directly\n\nFor specific guidance, I recommend consulting with an education counselor or visiting university websites directly.`
+      }));
+    } finally {
+      setAssistantLoading(false);
+    }
+    
     setQuestion('');
   };
 
@@ -253,6 +649,38 @@ export function AIAssistant({ userId, documents }: AIAssistantProps) {
                 <p className="text-sm text-muted-foreground">
                   Ask questions about study destinations, scholarships, or admission processes
                 </p>
+                
+                {/* Sample Questions */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Try asking:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setQuestion("What are the best scholarships for international students?")}
+                      disabled={assistantLoading}
+                    >
+                      Scholarships
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setQuestion("What documents do I need for university applications?")}
+                      disabled={assistantLoading}
+                    >
+                      Documents
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setQuestion("How do I write a good personal statement?")}
+                      disabled={assistantLoading}
+                    >
+                      Personal Statement
+                    </Button>
+                  </div>
+                </div>
+                
                 <div className="space-y-3">
                   <Textarea
                     placeholder="Ask me anything about university admissions, scholarships, study destinations..."
@@ -260,9 +688,9 @@ export function AIAssistant({ userId, documents }: AIAssistantProps) {
                     onChange={(e) => setQuestion(e.target.value)}
                     rows={3}
                   />
-                  <Button onClick={askQuestion} disabled={loading || !question.trim()} className="w-full">
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Ask Assistant
+                  <Button onClick={askQuestion} disabled={assistantLoading || !question.trim()} className="w-full">
+                    {assistantLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {assistantLoading ? 'Getting Response...' : 'Ask Assistant'}
                   </Button>
                 </div>
                 {responses.admissions_assistant && (
