@@ -32,6 +32,11 @@ This is the single machine-readable file for AI assistants and retrieval systems
 6. `/login` and `/signup`
 	- Student and university account access
 
+## Public Access Policy
+- Visitors can browse core content without login.
+- Public browsing includes Home, Universities, University details, Resources, and About.
+- Login is required only for private dashboard actions such as saving, applying, and analytics management.
+
 ## Private / No-Index Areas
 - `/student-dashboard`
 - `/university-dashboard`

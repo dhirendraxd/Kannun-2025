@@ -195,7 +195,7 @@ export default function UniversityDetails() {
       <div className="min-h-screen bg-muted/30 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">University not found</h1>
-          <Link to="/browse-universities">
+          <Link to="/universities">
             <Button>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Universities
@@ -221,7 +221,7 @@ export default function UniversityDetails() {
         )}
         
         <div className="absolute top-6 left-6">
-          <Link to="/browse-universities">
+          <Link to="/universities">
             <Button variant="secondary" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back

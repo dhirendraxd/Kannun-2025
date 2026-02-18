@@ -13,21 +13,15 @@ export function ProtectedRoute({ children, requiredUserType }: ProtectedRoutePro
 
   useEffect(() => {
     if (!loading) {
-      console.log('ProtectedRoute check:', { user: !!user, userType, requiredUserType });
-      
       if (!user) {
-        console.log('No user found, redirecting to login');
         navigate('/login');
         return;
       }
 
       if (requiredUserType && userType !== requiredUserType) {
-        console.log(`User type mismatch. Required: ${requiredUserType}, Got: ${userType}`);
         navigate(`/login?type=${requiredUserType}`);
         return;
       }
-
-      console.log('ProtectedRoute: Access granted');
     }
   }, [user, userType, loading, navigate, requiredUserType]);
 

@@ -16,11 +16,39 @@ interface UniversityProfile {
   logo_url: string | null;
 }
 
+const fallbackUniversities: UniversityProfile[] = [
+  {
+    id: "preview-1",
+    name: "Global Tech University",
+    description: "Public preview profile with strong engineering and computer science programs for international students.",
+    location: "Toronto, Canada",
+    website: "https://kannun-2025.vercel.app",
+    logo_url: null,
+  },
+  {
+    id: "preview-2",
+    name: "International Business Academy",
+    description: "Public preview profile focused on business analytics, finance, and management pathways.",
+    location: "London, United Kingdom",
+    website: "https://kannun-2025.vercel.app",
+    logo_url: null,
+  },
+  {
+    id: "preview-3",
+    name: "Pacific Health Sciences College",
+    description: "Public preview profile covering healthcare, nursing, and applied life sciences programs.",
+    location: "Melbourne, Australia",
+    website: "https://kannun-2025.vercel.app",
+    logo_url: null,
+  },
+];
+
 export default function BrowseUniversities() {
   const [profiles, setProfiles] = useState<UniversityProfile[]>([]);
   const [programCounts, setProgramCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
 
   useEffect(() => {
     document.title = "Browse Universities | EduConnect";
@@ -28,27 +56,50 @@ export default function BrowseUniversities() {
 
   const fetchData = async () => {
     setLoading(true);
-    // Fetch published profiles
-    const { data: profs } = await supabase
-      .from("university_profiles")
-      .select("id,name,description,location,website,logo_url")
-      .eq("is_published", true)
-      .order("updated_at", { ascending: false });
+    setHasLoadError(false);
 
-    setProfiles(profs || []);
+    try {
+      // Fetch published profiles
+      const { data: profs, error: profilesError } = await supabase
+        .from("university_profiles")
+        .select("id,name,description,location,website,logo_url")
+        .eq("is_published", true)
+        .order("updated_at", { ascending: false });
 
-    // Fetch all published programs and count per university
-    const { data: programs } = await supabase
-      .from("university_programs")
-      .select("id, university_id")
-      .eq("is_published", true);
+      if (profilesError) {
+        throw profilesError;
+      }
 
-    const counts: Record<string, number> = {};
-    (programs || []).forEach((p) => {
-      counts[p.university_id] = (counts[p.university_id] || 0) + 1;
-    });
-    setProgramCounts(counts);
-    setLoading(false);
+      const nextProfiles = (profs && profs.length > 0) ? profs : fallbackUniversities;
+      setProfiles(nextProfiles);
+
+      // Fetch all published programs and count per university
+      const { data: programs, error: programsError } = await supabase
+        .from("university_programs")
+        .select("id, university_id")
+        .eq("is_published", true);
+
+      if (programsError) {
+        throw programsError;
+      }
+
+      const counts: Record<string, number> = {};
+      (programs || []).forEach((p) => {
+        counts[p.university_id] = (counts[p.university_id] || 0) + 1;
+      });
+      setProgramCounts(counts);
+    } catch (error) {
+      console.error("Error loading universities:", error);
+      setHasLoadError(true);
+      setProfiles(fallbackUniversities);
+      setProgramCounts({
+        "preview-1": 24,
+        "preview-2": 18,
+        "preview-3": 15,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -87,8 +138,16 @@ export default function BrowseUniversities() {
       <div className="container py-8 px-4">
         <header className="mb-6">
           <h1 className="text-3xl font-bold">Browse Universities</h1>
-          <p className="text-muted-foreground">Discover institutions and their programs in real time</p>
+          <p className="text-muted-foreground">Discover institutions and their programs without login</p>
         </header>
+
+        {hasLoadError && (
+          <Card className="mb-6 border-border/50">
+            <CardContent className="py-4 text-sm text-muted-foreground">
+              Live university data is temporarily unavailable. Showing public preview profiles for a static browsing experience.
+            </CardContent>
+          </Card>
+        )}
 
         <div className="mb-6">
           <div className="relative">
@@ -155,10 +214,10 @@ export default function BrowseUniversities() {
                       </a>
                     )}
                     <Link
-                      to={`/university/${u.id}`}
+                      to={u.id.startsWith("preview-") ? "/resources" : `/university/${u.id}`}
                       className="ml-auto text-sm text-muted-foreground hover:text-foreground"
                     >
-                      View details
+                      {u.id.startsWith("preview-") ? "View resources" : "View details"}
                     </Link>
                   </div>
                 </CardContent>

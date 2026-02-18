@@ -1,11 +1,7 @@
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Sparkles, User, Building2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Sparkles } from "lucide-react";
 
 export function CTASection() {
-  const navigate = useNavigate();
-
   return (
     <section className="py-16 md:py-24 relative overflow-hidden" style={{ background: 'var(--gradient-blue)' }}>
       {/* Background Pattern */}
@@ -26,29 +22,6 @@ export function CTASection() {
             Join students and universities already using EduConnect to simplify study abroad planning,
             university applications, scholarships, and global higher education decisions.
           </p>
-
-          {/* <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button 
-              size="lg" 
-              className="group glass-button text-primary font-semibold hover:scale-105 shadow-lg rounded-2xl"
-              onClick={() => navigate('/signup?type=student')}
-            >
-              <User className="mr-2 h-5 w-5" />
-              Get Started as Student
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </Button>
-            
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="group glass-button text-white font-semibold hover:scale-105 hover:text-primary rounded-2xl"
-              onClick={() => navigate('/signup?type=university')}
-            >
-              <Building2 className="mr-2 h-5 w-5" />
-              Join as University
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </Button>
-          </div> */}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
             <div className="glass-card-light p-6 rounded-2xl">

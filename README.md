@@ -1,5 +1,10 @@
 # 🎓 AI-Powered University Recommendation Web App
 
+## 🏆 **3rd Prize Winner - KIST Hackfest 2025**
+Recognized for innovation in education technology at the KIST Hackfest 2025 competition.
+
+---
+
 ## 📌 Overview
 
 This web app helps students find the **best universities and courses** based on their profile and documents.
@@ -104,18 +109,4 @@ console.log(result.response.text());
 **Theme:** *Reimagining Education: Accessible, Engaging & Future-Ready Learning*
 This project empowers students to make informed decisions, connects them directly with universities, and leverages AI to simplify the complex process of higher education selection.
 
----
 
-If you want, I can now add a **full working example** of Supabase → Gemini AI → Recommendations using dummy data so you can run it instantly and see it work. That would make testing super quick.
-Would you like me to prepare that?
-
----
-
-## SEO Setup
-
-Set your production domain in environment variables before build/deploy:
-
-- `VITE_SITE_URL=https://kannun-2025.vercel.app`
-- `SITE_URL=https://kannun-2025.vercel.app`
-
-The build process auto-generates `public/sitemap.xml` using these values.
