@@ -23,8 +23,8 @@ export function CTASection() {
           </h2>
           
           <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Join thousands of students and universities already using EduConnect Global 
-            to make international education dreams come true.
+            Join students and universities already using EduConnect to simplify study abroad planning,
+            university applications, scholarships, and global higher education decisions.
           </p>
 
           {/* <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">

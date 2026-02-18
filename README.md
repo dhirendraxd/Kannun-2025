@@ -108,3 +108,14 @@ This project empowers students to make informed decisions, connects them directl
 
 If you want, I can now add a **full working example** of Supabase → Gemini AI → Recommendations using dummy data so you can run it instantly and see it work. That would make testing super quick.
 Would you like me to prepare that?
+
+---
+
+## SEO Setup
+
+Set your production domain in environment variables before build/deploy:
+
+- `VITE_SITE_URL=https://kannun-2025.vercel.app`
+- `SITE_URL=https://kannun-2025.vercel.app`
+
+The build process auto-generates `public/sitemap.xml` using these values.

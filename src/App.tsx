@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { SeoManager } from "@/components/seo/SeoManager";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -33,6 +34,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SeoManager />
       <Header 
         onToggleTheme={toggleTheme} 
         isDark={isDark}

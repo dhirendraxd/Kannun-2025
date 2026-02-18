@@ -45,8 +45,8 @@ export function HeroSection() {
 
           {/* Subheadline */}
           <p className="mx-auto mb-8 max-w-2xl text-lg text-white/90 md:text-xl">
-            Discover universities worldwide, get AI-powered recommendations, and apply with confidence. 
-            Turn your study abroad dreams into reality.
+            Discover universities worldwide, get AI-powered university recommendations, and complete university applications with confidence.
+            Turn your study abroad goals into reality with scholarship support and clear admission requirements.
           </p>
 
           {/* CTA Buttons */}

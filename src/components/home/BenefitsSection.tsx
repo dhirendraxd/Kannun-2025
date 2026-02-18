@@ -139,8 +139,8 @@ export function BenefitsSection() {
               Everything You Need to Study Abroad
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              From finding the perfect university to managing your applications, 
-              we've got every step of your journey covered.
+              From browsing university programs to completing university applications,
+              we support every step of your study abroad journey with scholarships and admission guidance.
             </p>
           </div>
 
@@ -162,8 +162,8 @@ export function BenefitsSection() {
               Attract the Right Students Globally
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Reach qualified international students and grow your global presence 
-              with our intelligent matching platform.
+              Reach qualified international students and grow your global presence
+              with an international education platform focused on relevance and admissions fit.
             </p>
           </div>
 

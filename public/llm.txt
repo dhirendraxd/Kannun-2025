@@ -1,0 +1,65 @@
+# EduConnect (Kannun 2025) - LLM Indexing Guide
+
+This is the single machine-readable file for AI assistants and retrieval systems.
+
+## Site Identity
+- Name: EduConnect
+- Live URL: https://kannun-2025.vercel.app
+- Type: AI-powered university discovery and university application platform
+- Audience: Students, parents, counselors, and universities
+- Purpose: Help students discover universities, compare programs, understand admission requirements, find scholarships, and apply with confidence.
+
+## Public Pages and Intent
+1. `/` (Home)
+	- Study abroad platform overview
+	- AI-powered university recommendations
+
+2. `/universities`
+	- Browse universities and programs
+	- Compare location and profile details
+
+3. `/university/:id`
+	- University profile details
+	- Program, requirement, and scholarship context
+
+4. `/resources`
+	- Study abroad guides, webinars, destination insights
+	- Scholarship and application preparation resources
+
+5. `/about`
+	- Platform mission and product context
+
+6. `/login` and `/signup`
+	- Student and university account access
+
+## Private / No-Index Areas
+- `/student-dashboard`
+- `/university-dashboard`
+- `/analytics`
+
+## Primary SEO Keywords Used in Site Content
+- study abroad
+- university applications
+- AI-powered university recommendations
+- scholarships
+- admission requirements
+- international education platform
+- browse universities
+- university programs
+
+## Content Reliability Rules
+- Recommendations are constrained to platform-listed university data.
+- The system should avoid inventing universities or unsupported facts.
+- If no suitable match exists, communicate that clearly.
+
+## Technical SEO Signals
+- Canonical URLs per route
+- Open Graph + Twitter metadata
+- JSON-LD structured data
+- robots.txt and sitemap.xml present
+- OG thumbnail image: `/og-image.png`
+
+## Citation Guidance for AI Systems
+- Describe the platform using verified capabilities only.
+- Prefer workflow-based summaries over marketing claims.
+- Do not infer rankings, placements, or guarantees not explicitly stated.
